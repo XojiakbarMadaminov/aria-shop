@@ -118,13 +118,19 @@
 
 @foreach($products as $product)
     @php
+        $productIdSuffix = " (ID#{$product->id})";
+        $suffixLen = function_exists('mb_strlen') ? mb_strlen($productIdSuffix) : strlen($productIdSuffix);
+
         $name = (string) ($product->name ?? '');
         $len  = function_exists('mb_strlen') ? mb_strlen($name) : strlen($name);
-        $max  = $cfg['name_max'];
+        $max  = max(1, $cfg['name_max'] - $suffixLen);
         if ($len > $max) {
             $name = (function_exists('mb_substr') ? mb_substr($name, 0, $max) : substr($name, 0, $max)) . '…';
             $len  = function_exists('mb_strlen') ? mb_strlen($name) : strlen($name);
         }
+
+        $name .= $productIdSuffix;
+        $len  = function_exists('mb_strlen') ? mb_strlen($name) : strlen($name);
 
         $nameFont   = ($cfg['name_font'])($len);
         $scale      = $cfg['barcode']['scale'];

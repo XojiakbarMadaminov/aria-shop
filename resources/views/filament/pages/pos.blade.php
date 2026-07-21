@@ -472,40 +472,55 @@
     {{-- Main content --}}
     <div class="space-y-12 lg:grid lg:grid-cols-1 lg:gap-8 lg:space-y-0">
         <div>
-            {{-- Search input --}}
-            <x-filament::input.wrapper class="mb-4">
-                <x-slot name="prefix">
-                    <x-heroicon-o-magnifying-glass class="w-5 h-5 text-gray-400 dark:text-gray-500"/>
-                </x-slot>
-                <x-filament::input
-                    name="search"
-                    x-data="{
-                        focusInput() {
-                            this.$refs.searchInput.focus();
-                        }
-                    }"
-                    x-ref="searchInput"
-                    x-init="
-                        $nextTick(() => focusInput());
-                        document.addEventListener('visibilitychange', () => {
-                            if (!document.hidden) {
-                                setTimeout(() => focusInput(), 100);
+            {{-- Search inputs --}}
+            <div class="mb-4 grid gap-4 md:grid-cols-2">
+                <x-filament::input.wrapper>
+                    <x-slot name="prefix">
+                        <x-heroicon-o-magnifying-glass class="w-5 h-5 text-gray-400 dark:text-gray-500"/>
+                    </x-slot>
+                    <x-filament::input
+                        name="search"
+                        x-data="{
+                            focusInput() {
+                                this.$refs.searchInput.focus();
                             }
-                        });
-                    "
-                    x-on:keydown.enter="$wire.addByBarcode($event.target.value); $event.target.value=''; $nextTick(() => focusInput())"
-                    wire:model.live="search"
-                    placeholder="Skanerlash yoki qo'lda kiriting..."
-                    autofocus
-                />
-            </x-filament::input.wrapper>
+                        }"
+                        x-ref="searchInput"
+                        x-init="
+                            $nextTick(() => focusInput());
+                            document.addEventListener('visibilitychange', () => {
+                                if (!document.hidden) {
+                                    setTimeout(() => focusInput(), 100);
+                                }
+                            });
+                        "
+                        x-on:keydown.enter="$wire.addByBarcode($event.target.value); $event.target.value=''; $nextTick(() => focusInput())"
+                        wire:model.live="search"
+                        placeholder="Skanerlash yoki qo'lda kiriting..."
+                        autofocus
+                    />
+                </x-filament::input.wrapper>
+
+                <x-filament::input.wrapper>
+                    <x-slot name="prefix">
+                        <x-heroicon-o-hashtag class="w-5 h-5 text-gray-400 dark:text-gray-500"/>
+                    </x-slot>
+                    <x-filament::input
+                        name="searchById"
+                        inputmode="numeric"
+                        x-on:keydown.enter="$wire.addByProductId($event.target.value); $event.target.value=''"
+                        wire:model.live="searchById"
+                        placeholder="Tovar ID si orqali qidiring..."
+                    />
+                </x-filament::input.wrapper>
+            </div>
 
             {{-- Search results --}}
             @if($products->isNotEmpty())
                 <table class="w-full mt-4 text-sm">
                     <thead class="bg-gray-100 dark:bg-gray-800">
                     <tr>
-                        <th class="px-2 py-1 text-left">Rasm</th>
+                        <th class="px-2 py-1 text-left">ID</th>
                         <th class="px-2 py-1 text-left">Nomi</th>
                         <th class="px-2 py-1 text-right">Narxi</th>
                         <th class="px-2 py-1"></th>
@@ -515,20 +530,8 @@
                     @foreach($products as $p)
                         <tr wire:key="item-{{ $p->id }}"
                              class="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-200">
-                            <td class="px-2 py-1">
-                                @php
-                                    $thumb = $p->getPrimaryImageUrl();
-                                    $urls = $p->getImageUrls();
-                                @endphp
-                                @if($thumb)
-                                    <img src="{{ $thumb }}"
-                                         alt="{{ $p->name }}"
-                                         class="w-12 h-12 object-cover rounded cursor-zoom-in"
-                                         x-on:click="$dispatch('open-img-zoom', { urls: @js($urls) })"
-                                    />
-                                @else
-                                    <div class="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                                @endif
+                            <td class="px-2 py-1 font-medium text-gray-700 dark:text-gray-300">
+                                #{{ $p->id }}
                             </td>
                             <td class="px-2 py-1">{{ $p->name }}</td>
                             <td class="px-2 py-1 text-right">{{ number_format($p->price, 2, '.', ' ') }}</td>

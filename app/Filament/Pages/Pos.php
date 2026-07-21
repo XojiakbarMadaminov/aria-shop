@@ -49,6 +49,7 @@ class Pos extends Page
     }
 
     public string $search     = '';
+    public string $searchById = '';
     public int $activeCartId  = 1; // Joriy faol cart ID
     public bool $showReceipt  = false; // Chek ko'rsatish uchun
     public array $receiptData = []; // Chek ma'lumotlari
@@ -177,7 +178,7 @@ class Pos extends Page
         $this->loadActiveCartMeta();
 
         $this->refreshCart();
-        $this->reset('search');
+        $this->reset('search', 'searchById');
         $this->products = new EloquentCollection;
     }
 
@@ -258,6 +259,8 @@ class Pos extends Page
     /* ---------- Qidiruv ---------- */
     public function updatedSearch(): void
     {
+        $this->searchById = '';
+
         if (empty(trim($this->search))) {
             $this->products = new EloquentCollection;
 
@@ -271,6 +274,24 @@ class Pos extends Page
             )
             ->orderBy('name')
             ->limit(5)
+            ->get();
+    }
+
+    public function updatedSearchById(): void
+    {
+        $this->search = '';
+
+        $term = trim($this->searchById);
+
+        if ($term === '' || !ctype_digit($term)) {
+            $this->products = new EloquentCollection;
+
+            return;
+        }
+
+        $this->products = Product::query()
+            ->whereKey((int) $term)
+            ->limit(1)
             ->get();
     }
 
@@ -1108,6 +1129,38 @@ class Pos extends Page
         if ($product) {
             app(CartService::class)->add($product, 1, $this->activeCartId);
             $this->reset('search');
+            $this->products = new EloquentCollection;
+            $this->refreshCart();
+            $this->refreshActiveCarts();
+
+            Notification::make()
+                ->title("Savat #{$this->activeCartId} ga qo'shildi")
+                ->success()
+                ->send();
+        } else {
+            Notification::make()
+                ->title('Mahsulot topilmadi')
+                ->danger()
+                ->send();
+        }
+    }
+
+    public function addByProductId(string $value): void
+    {
+        $value = trim($value);
+
+        if ($value === '' || !ctype_digit($value)) {
+            return;
+        }
+
+        $product = Product::query()
+            ->whereKey((int) $value)
+            ->first();
+
+        if ($product) {
+            app(CartService::class)->add($product, 1, $this->activeCartId);
+            $this->reset('searchById');
+            $this->products = new EloquentCollection;
             $this->refreshCart();
             $this->refreshActiveCarts();
 
