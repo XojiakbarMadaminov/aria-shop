@@ -12,6 +12,7 @@ enum NavigationGroup implements HasLabel
     case Finance;
     case Statistics;
     case Settings;
+    case Sms;
 
     public function getLabel(): string
     {
@@ -22,6 +23,7 @@ enum NavigationGroup implements HasLabel
             self::Finance               => 'Moliya',
             self::Settings              => 'Sozlamalar',
             self::Statistics            => 'Hisobot va tahlil',
+            self::Sms                   => 'SMS xabarlar',
         };
     }
 }
