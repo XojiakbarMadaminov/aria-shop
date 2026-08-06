@@ -43,15 +43,17 @@ class SmsTemplatesTable
                     ->modalHeading('Barcha mijozlarga SMS yuborish')
                     ->modalDescription(function (): string {
                         $count = Client::query()
+                            ->where('send_sms', true)
                             ->whereNotNull('phone')
                             ->where('phone', '!=', '')
                             ->count();
 
-                        return "Tizimda telefon raqami mavjud bo'lgan {$count} ta mijozga ushbu SMS xabari yuboriladi. Tasdiqlaysizmi?";
+                        return "Tizimda SMS yuborishga ruxsati bo'lgan {$count} ta mijozga ushbu SMS xabari yuboriladi. Tasdiqlaysizmi?";
                     })
                     ->modalSubmitActionLabel('Ha, yuborilsin')
                     ->action(function (SmsTemplate $record): void {
                         $clientCount = Client::query()
+                            ->where('send_sms', true)
                             ->whereNotNull('phone')
                             ->where('phone', '!=', '')
                             ->count();

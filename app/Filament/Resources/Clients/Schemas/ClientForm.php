@@ -46,7 +46,6 @@ class ClientForm
                             ->formatStateUsing(fn ($state) => $state
                                 ? ltrim(preg_replace('/^\+998/', '', $state), '0')
                                 : $state),
-                        TextInput::make('send_sms_interval')->label('SMS yuborish intervali')->numeric()->default(10),
                         Toggle::make('send_sms')->label('SMS yuborishga ruhsat')->default(true),
 
                     ]),

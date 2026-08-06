@@ -32,6 +32,7 @@ class SendMassSmsJob implements ShouldQueue
 
         try {
             $clientsQuery = Client::query()
+                ->where('send_sms', true)
                 ->whereNotNull('phone')
                 ->where('phone', '!=', '');
 

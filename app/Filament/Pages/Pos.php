@@ -924,11 +924,13 @@ class Pos extends Page
     /* ---------- Chek funksiyalari ---------- */
     public function prepareReceipt(int $storeId, int $cartId, array $items, array $totals, array $meta = []): void
     {
-        $storeName = $meta['store_name'] ?? auth()->user()?->currentStore?->name ?? config('app.store_name');
+        $currentStore = auth()->user()?->currentStore;
+        $storeName    = $meta['store_name'] ?? $currentStore?->name ?? config('app.store_name');
 
         $this->receiptData = [
             'store_id'       => $storeId,
             'store_name'     => $storeName,
+            'store_phone'    => $currentStore?->phone,
             'cart_id'        => $cartId,
             'items'          => $items,
             'totals'         => $totals,

@@ -81,3 +81,33 @@ it('processes send mass sms job correctly', function () {
         ->and($smsLog->fresh()->successful_count)->toBe(2)
         ->and($smsLog->fresh()->failed_count)->toBe(0);
 });
+
+it('skips clients with send_sms disabled', function () {
+    $smsServiceMock = Mockery::mock(SmsService::class);
+    $smsServiceMock->shouldReceive('sendSms')
+        ->once()
+        ->with('+998901234567', 'Test SMS')
+        ->andReturn(['success' => true]);
+
+    $this->app->instance(SmsService::class, $smsServiceMock);
+
+    Client::factory()->create(['phone' => '+998901234567', 'send_sms' => true]);
+    Client::factory()->create(['phone' => '+998909876543', 'send_sms' => false]);
+
+    $template = SmsTemplate::create(['content' => 'Test SMS']);
+
+    $smsLog = SmsLog::create([
+        'sms_template_id'  => $template->id,
+        'content'          => $template->content,
+        'total_clients'    => 1,
+        'successful_count' => 0,
+        'failed_count'     => 0,
+        'status'           => 'pending',
+    ]);
+
+    $job = new SendMassSmsJob($smsLog);
+    $job->handle($smsServiceMock);
+
+    expect($smsLog->fresh()->total_clients)->toBe(1)
+        ->and($smsLog->fresh()->successful_count)->toBe(1);
+});

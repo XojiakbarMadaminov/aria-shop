@@ -16,6 +16,7 @@
     $items      = $data['items'] ?? [];
     $totals     = $data['totals'] ?? ['qty' => 0, 'amount' => 0];
     $storeName  = $data['store_name'] ?? (auth()->user()?->currentStore?->name ?? config('app.store_name'));
+    $storePhone = $data['store_phone'] ?? null;
 
     $cartIdFormatted = $data['cart_id'] ?? null;
     $storeIdFormatted = $data['store_id'] ?? null;
@@ -66,6 +67,9 @@
 <div class="center bold" style="margin-bottom:8px;">{{ $data['date'] ?? '' }}</div>
 
 <div class="bold">Store: #{{ $storeIdFormatted !== null ? $storeIdFormatted : '—' }}</div>
+@if(!empty($storePhone))
+    <div class="bold">Aloqa uchun: {{ $storePhone }}</div>
+@endif
 <div style="margin-top:8px; font-size:12px;" class="bold">
     <div>ID: <strong>{{ $meta['sale_id'] ?? '—' }}</strong></div>
     <div>Klient: <strong>{{ $meta['client_name'] ?? '-' }}</strong></div>

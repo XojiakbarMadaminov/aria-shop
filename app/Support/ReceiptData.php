@@ -20,10 +20,11 @@ class ReceiptData
         $receiptNumber = 'R' . str_pad((string) $cartId, 4, '0', STR_PAD_LEFT) . $timestamp;
 
         return [
-            'cart_id'    => $cartId,
-            'store_id'   => $storeId,
-            'store_name' => $sale->store?->name ?? config('app.store_name'),
-            'items'      => $items->map(function ($item) {
+            'cart_id'     => $cartId,
+            'store_id'    => $storeId,
+            'store_name'  => $sale->store?->name ?? config('app.store_name'),
+            'store_phone' => $sale->store?->phone,
+            'items'       => $items->map(function ($item) {
                 return [
                     'name'                   => $item->product?->name ?? 'Mahsulot',
                     'size'                   => $item->productSize?->size,
