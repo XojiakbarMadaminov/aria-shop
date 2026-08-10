@@ -20,6 +20,14 @@ class ExchangeService
     public function handle(array $payload): ExchangeOperation
     {
         return DB::transaction(function () use ($payload) {
+            $storeId = auth()->user()?->current_store_id;
+
+            if (!$storeId) {
+                throw ValidationException::withMessages([
+                    'store_id' => 'Foydalanuvchi uchun joriy do‘kon tanlanmagan.',
+                ]);
+            }
+
             $stockId  = (int) ($payload['stock_id'] ?? 0);
             $quantity = (int) ($payload['quantity'] ?? 0);
 
@@ -118,6 +126,7 @@ class ExchangeService
                 'adjustment_type' => InventoryAdjustment::TYPE_EXCHANGE_IN,
                 'reason'          => $reason,
                 'handled_by'      => auth()->id(),
+                'store_id'        => $storeId,
             ]);
 
             InventoryAdjustment::create([
@@ -128,6 +137,7 @@ class ExchangeService
                 'adjustment_type' => InventoryAdjustment::TYPE_EXCHANGE_OUT,
                 'reason'          => $reason,
                 'handled_by'      => auth()->id(),
+                'store_id'        => $storeId,
             ]);
 
             $operation = ExchangeOperation::create([
@@ -137,6 +147,7 @@ class ExchangeService
                 'out_product_size_id' => $outProductSizeId,
                 'price_difference'    => $priceDifference,
                 'handled_by'          => auth()->id(),
+                'store_id'            => $storeId,
             ]);
 
             if ($priceDifference !== 0) {
@@ -145,7 +156,8 @@ class ExchangeService
                     'direction' => $priceDifference > 0
                         ? CashTransaction::DIRECTION_IN
                         : CashTransaction::DIRECTION_OUT,
-                    'reason' => CashTransaction::REASON_EXCHANGE_DIFF,
+                    'reason'   => CashTransaction::REASON_EXCHANGE_DIFF,
+                    'store_id' => $storeId,
                 ]);
             }
 

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Store;
 use App\Models\Discount;
 use App\Enums\DiscountType;
 use Illuminate\Database\Seeder;
@@ -13,12 +14,19 @@ class DiscountSeeder extends Seeder
      */
     public function run(): void
     {
-        foreach ($this->discounts() as $discount) {
-            Discount::query()->firstOrCreate(
-                ['type' => $discount['type']],
-                $discount,
-            );
-        }
+        Store::query()
+            ->select('id')
+            ->each(function (Store $store): void {
+                foreach ($this->discounts() as $discount) {
+                    Discount::query()->firstOrCreate(
+                        [
+                            'store_id' => $store->id,
+                            'type'     => $discount['type'],
+                        ],
+                        $discount,
+                    );
+                }
+            });
     }
 
     /**

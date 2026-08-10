@@ -11,6 +11,7 @@ use App\Filament\Widgets\SalesStatsOverview;
 use Filament\Pages\Dashboard as BaseDashboard;
 use App\Filament\Widgets\TopSellingProductsChart;
 use App\Filament\Widgets\TopPurchasedProductsChart;
+use App\Filament\Widgets\TopSellingCategoriesChart;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 
 class Dashboard extends BaseDashboard
@@ -32,6 +33,7 @@ class Dashboard extends BaseDashboard
         return [
             SalesStatsOverview::class,
             TopSellingProductsChart::class,
+            TopSellingCategoriesChart::class,
             TopPurchasedProductsChart::class,
         ];
     }

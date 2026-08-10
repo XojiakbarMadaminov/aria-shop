@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\HasCurrentStoreScope;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ExchangeOperation extends Model
 {
+    use HasCurrentStoreScope;
+
     protected $guarded = [];
 
     public $timestamps = false;
@@ -38,5 +41,10 @@ class ExchangeOperation extends Model
     public function handledBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'handled_by');
+    }
+
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class);
     }
 }

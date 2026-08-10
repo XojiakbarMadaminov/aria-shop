@@ -5,13 +5,15 @@ namespace App\Models;
 use App\Enums\DiscountType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use App\Models\Traits\HasCurrentStoreScope;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Discount extends Model
 {
     /** @use HasFactory<\Database\Factories\DiscountFactory> */
-    use HasFactory;
+    use HasCurrentStoreScope, HasFactory;
 
     protected $guarded = [];
 
@@ -38,6 +40,11 @@ class Discount extends Model
     public function categories(): BelongsToMany
     {
         return $this->belongsToMany(Category::class);
+    }
+
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class);
     }
 
     public function scopeActiveNow(Builder $query): Builder

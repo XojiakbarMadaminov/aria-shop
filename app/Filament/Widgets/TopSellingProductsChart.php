@@ -2,10 +2,11 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\SaleItem;
+use App\Models\Product;
 use Livewire\Attributes\On;
 use Illuminate\Support\Carbon;
 use Filament\Widgets\ChartWidget;
+use App\Services\NetSalesQuantityService;
 use Filament\Forms\Concerns\InteractsWithForms;
 use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 
@@ -37,22 +38,27 @@ class TopSellingProductsChart extends ChartWidget
         $start = Carbon::parse($this->start_date ?? now())->startOfDay();
         $end   = Carbon::parse($this->end_date ?? now())->endOfDay();
 
-        $topProducts = SaleItem::with(['product' => fn ($query) => $query->withTrashed()])
-            ->whereBetween('created_at', [$start, $end])
-            ->selectRaw('product_id, SUM(quantity) as total_qty')
-            ->groupBy('product_id')
-            ->orderByDesc('total_qty')
-            ->take(10)
-            ->get();
+        $topQuantities = app(NetSalesQuantityService::class)
+            ->forPeriod($start, $end)
+            ->sortDesc()
+            ->take(10);
+
+        $productNames = Product::query()
+            ->withTrashed()
+            ->whereIn('id', $topQuantities->keys())
+            ->pluck('name', 'id');
 
         return [
             'datasets' => [
                 [
                     'label' => 'Sotilgan soni',
-                    'data'  => $topProducts->pluck('total_qty'),
+                    'data'  => $topQuantities->values(),
                 ],
             ],
-            'labels' => $topProducts->map(fn ($item) => $item->product->name ?? 'Nomaʼlum')->toArray(),
+            'labels' => $topQuantities
+                ->keys()
+                ->map(fn (int $productId): string => $productNames->get($productId, 'Noma’lum'))
+                ->all(),
         ];
     }
 

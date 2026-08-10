@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\HasCurrentStoreScope;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class InventoryAdjustment extends Model
 {
+    use HasCurrentStoreScope;
+
     public const TYPE_RETURN       = 'return';
     public const TYPE_EXCHANGE_IN  = 'exchange_in';
     public const TYPE_EXCHANGE_OUT = 'exchange_out';
@@ -33,5 +36,10 @@ class InventoryAdjustment extends Model
     public function productSize(): BelongsTo
     {
         return $this->belongsTo(ProductSize::class, 'product_size_id');
+    }
+
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class);
     }
 }

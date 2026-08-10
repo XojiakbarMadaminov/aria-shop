@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Store extends Model
 {
@@ -25,5 +26,10 @@ class Store extends Model
     public function debtors()
     {
         return $this->hasMany(Debtor::class);
+    }
+
+    public function discounts(): HasMany
+    {
+        return $this->hasMany(Discount::class);
     }
 }

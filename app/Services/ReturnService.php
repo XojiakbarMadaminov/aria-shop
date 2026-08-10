@@ -19,6 +19,14 @@ class ReturnService
     public function handle(array $payload): InventoryAdjustment
     {
         return DB::transaction(function () use ($payload) {
+            $storeId = auth()->user()?->current_store_id;
+
+            if (!$storeId) {
+                throw ValidationException::withMessages([
+                    'store_id' => 'Foydalanuvchi uchun joriy do‘kon tanlanmagan.',
+                ]);
+            }
+
             $productId = (int) ($payload['product_id'] ?? 0);
             $stockId   = (int) ($payload['stock_id'] ?? 0);
             $quantity  = (int) ($payload['quantity'] ?? 0);
@@ -86,12 +94,14 @@ class ReturnService
                 'adjustment_type' => InventoryAdjustment::TYPE_RETURN,
                 'reason'          => $payload['reason'] ?? null,
                 'handled_by'      => auth()->id(),
+                'store_id'        => $storeId,
             ]);
 
             CashTransaction::create([
                 'amount'    => $quantity * $unitPrice,
                 'direction' => CashTransaction::DIRECTION_OUT,
                 'reason'    => CashTransaction::REASON_RETURN,
+                'store_id'  => $storeId,
             ]);
 
             return $adjustment;
