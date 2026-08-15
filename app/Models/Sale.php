@@ -19,17 +19,19 @@ class Sale extends Model
     protected $guarded = [];
 
     protected $casts = [
-        'total_amount'           => 'float',
-        'subtotal_amount'        => 'float',
-        'product_discount_total' => 'float',
-        'order_discount_total'   => 'float',
-        'discount_total'         => 'float',
-        'applied_discounts'      => 'array',
-        'paid_amount'            => 'float',
-        'remaining_amount'       => 'float',
-        'mixed_cash_amount'      => 'float',
-        'mixed_card_amount'      => 'float',
-        'status'                 => 'string',
+        'total_amount'             => 'float',
+        'subtotal_amount'          => 'float',
+        'product_discount_total'   => 'float',
+        'order_discount_total'     => 'float',
+        'discount_total'           => 'float',
+        'applied_discounts'        => 'array',
+        'customer_discount_value'  => 'float',
+        'customer_discount_amount' => 'float',
+        'paid_amount'              => 'float',
+        'remaining_amount'         => 'float',
+        'mixed_cash_amount'        => 'float',
+        'mixed_card_amount'        => 'float',
+        'status'                   => 'string',
     ];
 
     public function items(): HasMany

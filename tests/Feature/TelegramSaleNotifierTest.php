@@ -27,16 +27,19 @@ it('includes item and total discount breakdown in sale telegram messages', funct
     ]);
 
     $sale = Sale::withoutEvents(fn (): Sale => Sale::create([
-        'cart_id'                => 1,
-        'subtotal_amount'        => 600000,
-        'total_amount'           => 450000,
-        'product_discount_total' => 100000,
-        'order_discount_total'   => 50000,
-        'discount_total'         => 150000,
-        'paid_amount'            => 450000,
-        'remaining_amount'       => 0,
-        'payment_type'           => 'cash',
-        'status'                 => Sale::STATUS_COMPLETED,
+        'cart_id'                  => 1,
+        'subtotal_amount'          => 600000,
+        'total_amount'             => 405000,
+        'product_discount_total'   => 100000,
+        'order_discount_total'     => 50000,
+        'discount_total'           => 150000,
+        'customer_discount_type'   => 'percent',
+        'customer_discount_value'  => 10,
+        'customer_discount_amount' => 45000,
+        'paid_amount'              => 405000,
+        'remaining_amount'         => 0,
+        'payment_type'             => 'cash',
+        'status'                   => Sale::STATUS_COMPLETED,
     ]));
 
     SaleItem::create([
@@ -72,6 +75,7 @@ it('includes item and total discount breakdown in sale telegram messages', funct
         ->toContain("1 x 400 000 = 400 000 so'm")
         ->toContain('Jami mahsulotlar: 2 dona')
         ->toContain("Subtotal: 600 000 so'm")
-        ->toContain("Chegirma: -150 000 so'm")
-        ->toContain("JAMI SUMMA: 450 000 so'm");
+        ->toContain("Avtomatik chegirma: -150 000 so'm")
+        ->toContain("Mijoz chegirmasi (10%): -45 000 so'm")
+        ->toContain("JAMI SUMMA: 405 000 so'm");
 });

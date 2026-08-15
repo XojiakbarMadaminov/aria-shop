@@ -21,6 +21,7 @@ use App\Services\DiscountService;
 use App\Services\ExchangeService;
 use Illuminate\Support\Facades\DB;
 use Filament\Notifications\Notification;
+use App\Services\CustomerDiscountService;
 use Filament\Panel\Concerns\HasNotifications;
 use Illuminate\Validation\ValidationException;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
@@ -64,6 +65,7 @@ class Pos extends Page
     public array $cartPaymentTypes                 = [];
     public array $cartPartialPayments              = [];
     public array $cartMixedPayments                = [];
+    public array $cartCustomerDiscounts            = [];
     public array $cartSaleWithoutClient            = [];
     public array $cartSaleWithoutClientPaymentType = [];
     public bool $showClientPanel                   = false;
@@ -76,6 +78,8 @@ class Pos extends Page
     public string $paymentType                     = '';
     public ?float $partialPaymentAmount            = null;
     public ?string $paymentNote                    = null;
+    public string $customerDiscountType            = CustomerDiscountService::TYPE_PERCENT;
+    public ?float $customerDiscountValue           = null;
     public array $mixedPayment                     = [
         'cash' => null,
         'card' => null,
@@ -132,7 +136,6 @@ class Pos extends Page
     public function mount(): void
     {
         $this->products = new EloquentCollection;
-        $this->refreshActiveCarts();
 
         $this->cartClients                      = session('pos_cart_clients', []);
         $this->cartPaymentTypes                 = session('pos_cart_payment_types', []);
@@ -140,6 +143,8 @@ class Pos extends Page
         $this->cartMixedPayments                = session('pos_cart_mixed_payments', []);
         $this->cartSaleWithoutClient            = session('pos_cart_sale_without_client', []);
         $this->cartSaleWithoutClientPaymentType = session('pos_cart_sale_without_client_payment_type', []);
+        $this->cartCustomerDiscounts            = session('pos_cart_customer_discounts', []);
+        $this->refreshActiveCarts();
 
         // Oxirgi faol cart ID ni session dan olish
         $savedCartId = session('pos_active_cart_id', 1);
@@ -200,7 +205,10 @@ class Pos extends Page
             $this->cartClients[$newCartId],
             $this->cartPaymentTypes[$newCartId],
             $this->cartPartialPayments[$newCartId],
-            $this->cartMixedPayments[$newCartId]
+            $this->cartMixedPayments[$newCartId],
+            $this->cartCustomerDiscounts[$newCartId],
+            $this->cartSaleWithoutClient[$newCartId],
+            $this->cartSaleWithoutClientPaymentType[$newCartId]
         );
         $this->loadActiveCartMeta();
         $this->persistCartMeta();
@@ -234,7 +242,10 @@ class Pos extends Page
             $this->cartClients[$cartId],
             $this->cartPaymentTypes[$cartId],
             $this->cartPartialPayments[$cartId],
-            $this->cartMixedPayments[$cartId]
+            $this->cartMixedPayments[$cartId],
+            $this->cartCustomerDiscounts[$cartId],
+            $this->cartSaleWithoutClient[$cartId],
+            $this->cartSaleWithoutClientPaymentType[$cartId]
         );
 
         // Agar yopilayotgan cart joriy faol cart bo'lsa, boshqasini tanlash
@@ -428,7 +439,10 @@ class Pos extends Page
     {
         $cartService = app(CartService::class);
         $cart        = $cartService->all($this->activeCartId);
-        $totals      = $cartService->totals($this->activeCartId);
+        $totals      = $this->applyCustomerDiscountToTotals(
+            $cartService->totals($this->activeCartId),
+            $this->activeCartId
+        );
 
         if (empty($cart)) {
             Notification::make()
@@ -439,13 +453,23 @@ class Pos extends Page
             return false;
         }
 
-        $totalAmount = round((float) ($totals['amount'] ?? 0), 2);
+        $baseTotalAmount = round((float) ($totals['amount_before_customer_discount'] ?? $totals['amount'] ?? 0), 2);
+        $totalAmount     = round((float) ($totals['amount'] ?? 0), 2);
 
-        if ($totalAmount <= 0) {
+        if ($baseTotalAmount <= 0) {
             Notification::make()
                 ->title('Savat summasi noto‘g‘ri')
                 ->body('Savat bo‘sh yoki mahsulot narxlari noto‘g‘ri.')
                 ->danger()
+                ->send();
+
+            return false;
+        }
+
+        if (($totals['customer_discount_amount'] ?? 0) > 0 && !$this->selectedClientId) {
+            Notification::make()
+                ->title('Mijoz chegirmasi uchun klient talab qilinadi')
+                ->warning()
                 ->send();
 
             return false;
@@ -728,16 +752,26 @@ class Pos extends Page
             $sizeNames = \App\Models\ProductSize::whereIn('id', $sizeIds)->pluck('size', 'id')->toArray();
         }
 
-        $discountSummary = app(DiscountService::class)->calculate($preparedItems);
-        $totalAmount     = round((float) $discountSummary['total'], 2);
-        $totals          = array_merge($totals, [
-            'amount'                 => $discountSummary['total'],
-            'subtotal'               => $discountSummary['subtotal'],
-            'product_discount_total' => $discountSummary['product_discount_total'],
-            'order_discount_total'   => $discountSummary['order_discount_total'],
-            'discount_total'         => $discountSummary['discount_total'],
-            'applied_discounts'      => $discountSummary['applied_discounts'],
+        $discountSummary         = app(DiscountService::class)->calculate($preparedItems);
+        $customerDiscountSummary = app(CustomerDiscountService::class)->calculate(
+            (float) $discountSummary['total'],
+            $this->selectedClientId ? $this->customerDiscountType : null,
+            $this->selectedClientId ? $this->customerDiscountValue : null,
+        );
+        $totalAmount = $customerDiscountSummary['total'];
+        $totals      = array_merge($totals, [
+            'amount'                          => $discountSummary['total'],
+            'amount_before_customer_discount' => $discountSummary['total'],
+            'subtotal'                        => $discountSummary['subtotal'],
+            'product_discount_total'          => $discountSummary['product_discount_total'],
+            'order_discount_total'            => $discountSummary['order_discount_total'],
+            'discount_total'                  => $discountSummary['discount_total'],
+            'applied_discounts'               => $discountSummary['applied_discounts'],
+            'customer_discount_type'          => $customerDiscountSummary['type'],
+            'customer_discount_value'         => $customerDiscountSummary['value'],
+            'customer_discount_amount'        => $customerDiscountSummary['amount'],
         ]);
+        $totals['amount'] = $totalAmount;
 
         $receiptItems = [];
 
@@ -763,7 +797,7 @@ class Pos extends Page
         $remainingAmountForReceipt = 0.0;
 
         try {
-            [$sale, $remainingAmountForReceipt] = DB::transaction(function () use ($preparedItems, $discountSummary, $totalAmount, $paymentType, $clientId, $partialAmount, $mixedAmounts) {
+            [$sale, $remainingAmountForReceipt] = DB::transaction(function () use ($preparedItems, $discountSummary, $customerDiscountSummary, $totalAmount, $paymentType, $clientId, $partialAmount, $mixedAmounts) {
                 $user    = auth()->user();
                 $storeId = $user?->current_store_id;
 
@@ -786,22 +820,25 @@ class Pos extends Page
                     : Sale::STATUS_COMPLETED;
 
                 $sale = Sale::create([
-                    'cart_id'                => $this->activeCartId,
-                    'client_id'              => $clientId,
-                    'subtotal_amount'        => $discountSummary['subtotal'],
-                    'total_amount'           => $totalAmount,
-                    'product_discount_total' => $discountSummary['product_discount_total'],
-                    'order_discount_total'   => $discountSummary['order_discount_total'],
-                    'discount_total'         => $discountSummary['discount_total'],
-                    'applied_discounts'      => $discountSummary['applied_discounts'],
-                    'paid_amount'            => $paidAmount,
-                    'remaining_amount'       => $remainingAmount,
-                    'payment_type'           => $paymentType,
-                    'mixed_cash_amount'      => $mixedCash,
-                    'mixed_card_amount'      => $mixedCard,
-                    'store_id'               => $storeId,
-                    'status'                 => $status,
-                    'created_by'             => $user?->id,
+                    'cart_id'                  => $this->activeCartId,
+                    'client_id'                => $clientId,
+                    'subtotal_amount'          => $discountSummary['subtotal'],
+                    'total_amount'             => $totalAmount,
+                    'product_discount_total'   => $discountSummary['product_discount_total'],
+                    'order_discount_total'     => $discountSummary['order_discount_total'],
+                    'discount_total'           => $discountSummary['discount_total'],
+                    'applied_discounts'        => $discountSummary['applied_discounts'],
+                    'customer_discount_type'   => $customerDiscountSummary['type'],
+                    'customer_discount_value'  => $customerDiscountSummary['value'],
+                    'customer_discount_amount' => $customerDiscountSummary['amount'],
+                    'paid_amount'              => $paidAmount,
+                    'remaining_amount'         => $remainingAmount,
+                    'payment_type'             => $paymentType,
+                    'mixed_cash_amount'        => $mixedCash,
+                    'mixed_card_amount'        => $mixedCard,
+                    'store_id'                 => $storeId,
+                    'status'                   => $status,
+                    'created_by'               => $user?->id,
                 ]);
 
                 foreach ($preparedItems as $index => $prepared) {
@@ -902,7 +939,10 @@ class Pos extends Page
             $this->cartClients[$this->activeCartId],
             $this->cartPaymentTypes[$this->activeCartId],
             $this->cartPartialPayments[$this->activeCartId],
-            $this->cartMixedPayments[$this->activeCartId]
+            $this->cartMixedPayments[$this->activeCartId],
+            $this->cartCustomerDiscounts[$this->activeCartId],
+            $this->cartSaleWithoutClient[$this->activeCartId],
+            $this->cartSaleWithoutClientPaymentType[$this->activeCartId]
         );
         $this->persistCartMeta();
         $this->loadActiveCartMeta();
@@ -968,7 +1008,10 @@ class Pos extends Page
     {
         $cartService  = app(CartService::class);
         $this->cart   = $cartService->all($this->activeCartId);
-        $this->totals = $cartService->totals($this->activeCartId);
+        $this->totals = $this->applyCustomerDiscountToTotals(
+            $cartService->totals($this->activeCartId),
+            $this->activeCartId
+        );
 
         if (
             $this->paymentType === 'mixed'
@@ -992,7 +1035,10 @@ class Pos extends Page
         } else {
             // Barcha cartlar uchun ma'lumotlarni olish
             foreach ($allCartIds as $cartId) {
-                $this->activeCarts[$cartId] = $cartService->totals($cartId);
+                $this->activeCarts[$cartId] = $this->applyCustomerDiscountToTotals(
+                    $cartService->totals($cartId),
+                    $cartId
+                );
             }
         }
     }
@@ -1030,6 +1076,16 @@ class Pos extends Page
             'cash' => $mixed['cash'] ?? null,
             'card' => $mixed['card'] ?? null,
         ];
+
+        $customerDiscount           = $this->cartCustomerDiscounts[$this->activeCartId] ?? [];
+        $this->customerDiscountType = in_array(
+            $customerDiscount['type'] ?? null,
+            [CustomerDiscountService::TYPE_PERCENT, CustomerDiscountService::TYPE_FIXED],
+            true
+        ) ? $customerDiscount['type'] : CustomerDiscountService::TYPE_PERCENT;
+        $this->customerDiscountValue = isset($customerDiscount['value']) && is_numeric($customerDiscount['value'])
+            ? (float) $customerDiscount['value']
+            : null;
     }
 
     protected function persistCartMeta(): void
@@ -1038,6 +1094,7 @@ class Pos extends Page
         session()->put('pos_cart_payment_types', $this->cartPaymentTypes);
         session()->put('pos_cart_sale_without_client', $this->cartSaleWithoutClient);
         session()->put('pos_cart_sale_without_client_payment_type', $this->cartSaleWithoutClientPaymentType);
+        session()->put('pos_cart_customer_discounts', $this->cartCustomerDiscounts);
 
         $partialNormalized = [];
         foreach ($this->cartPartialPayments as $cartId => $value) {
@@ -1063,6 +1120,125 @@ class Pos extends Page
 
         $this->cartMixedPayments = $mixedNormalized;
         session()->put('pos_cart_mixed_payments', $mixedNormalized);
+    }
+
+    /**
+     * @param  array<string, mixed>  $totals
+     * @return array<string, mixed>
+     */
+    protected function applyCustomerDiscountToTotals(array $totals, int $cartId): array
+    {
+        $baseAmount = round((float) ($totals['amount'] ?? 0), 2);
+        $clientId   = $this->cartClients[$cartId] ?? null;
+        $discount   = $this->cartCustomerDiscounts[$cartId] ?? [];
+
+        $summary = app(CustomerDiscountService::class)->calculate(
+            $baseAmount,
+            $clientId ? ($discount['type'] ?? null) : null,
+            $clientId ? ($discount['value'] ?? null) : null,
+        );
+
+        return array_merge($totals, [
+            'amount_before_customer_discount' => $baseAmount,
+            'customer_discount_type'          => $summary['type'],
+            'customer_discount_value'         => $summary['value'],
+            'customer_discount_amount'        => $summary['amount'],
+            'amount'                          => $summary['total'],
+        ]);
+    }
+
+    public function updatedCustomerDiscountType(mixed $value): void
+    {
+        $this->customerDiscountType = in_array(
+            $value,
+            [CustomerDiscountService::TYPE_PERCENT, CustomerDiscountService::TYPE_FIXED],
+            true
+        ) ? $value : CustomerDiscountService::TYPE_PERCENT;
+
+        if ($this->customerDiscountValue !== null) {
+            $this->updatedCustomerDiscountValue($this->customerDiscountValue);
+
+            return;
+        }
+
+        $this->syncCustomerDiscount();
+    }
+
+    public function updatedCustomerDiscountValue(mixed $value): void
+    {
+        if ($value === null || $value === '') {
+            $this->customerDiscountValue = null;
+            $this->syncCustomerDiscount();
+
+            return;
+        }
+
+        $baseAmount = (float) ($this->totals['amount_before_customer_discount'] ?? $this->totals['amount'] ?? 0);
+        $summary    = app(CustomerDiscountService::class)->calculate(
+            $baseAmount,
+            $this->customerDiscountType,
+            $value,
+        );
+
+        $this->customerDiscountValue = $summary['value'];
+        $this->syncCustomerDiscount();
+    }
+
+    protected function syncCustomerDiscount(): void
+    {
+        if (!$this->selectedClientId) {
+            $this->resetCustomerDiscount();
+
+            return;
+        }
+
+        $this->cartCustomerDiscounts[$this->activeCartId] = [
+            'type'  => $this->customerDiscountType,
+            'value' => $this->customerDiscountValue,
+        ];
+
+        $this->persistCartMeta();
+        $this->recalculateCustomerDiscountTotals();
+    }
+
+    protected function resetCustomerDiscount(bool $persist = true): void
+    {
+        $this->customerDiscountType  = CustomerDiscountService::TYPE_PERCENT;
+        $this->customerDiscountValue = null;
+        unset($this->cartCustomerDiscounts[$this->activeCartId]);
+
+        if ($persist) {
+            $this->persistCartMeta();
+            $this->recalculateCustomerDiscountTotals();
+        }
+    }
+
+    protected function recalculateCustomerDiscountTotals(): void
+    {
+        $baseAmount = (float) ($this->totals['amount_before_customer_discount'] ?? $this->totals['amount'] ?? 0);
+        $discount   = $this->cartCustomerDiscounts[$this->activeCartId] ?? [];
+
+        $summary = app(CustomerDiscountService::class)->calculate(
+            $baseAmount,
+            $this->selectedClientId ? ($discount['type'] ?? null) : null,
+            $this->selectedClientId ? ($discount['value'] ?? null) : null,
+        );
+
+        $this->totals = array_merge($this->totals, [
+            'amount_before_customer_discount' => $baseAmount,
+            'customer_discount_type'          => $summary['type'],
+            'customer_discount_value'         => $summary['value'],
+            'customer_discount_amount'        => $summary['amount'],
+            'amount'                          => $summary['total'],
+        ]);
+        $this->activeCarts[$this->activeCartId] = $this->totals;
+
+        if (
+            $this->paymentType === 'mixed'
+            && (($this->mixedPayment['card'] ?? null) !== null || ($this->mixedPayment['cash'] ?? null) !== null)
+        ) {
+            $this->handleMixedPaymentUpdate('card', $this->mixedPayment['card']);
+        }
     }
 
     public function updatedSaleWithoutClient($value): void
@@ -1323,12 +1499,18 @@ class Pos extends Page
     /* === Klient tanlash === */
     public function selectClient(int $id): void
     {
+        if ($this->selectedClientId !== $id) {
+            $this->resetCustomerDiscount(false);
+        }
+
         $this->selectedClientId                 = $id;
         $this->cartClients[$this->activeCartId] = $id;
         // When a client is selected, disable 'klientsiz sotuv' mode
         $this->saleWithoutClient                          = false;
         $this->cartSaleWithoutClient[$this->activeCartId] = false;
         $this->persistCartMeta();
+        $this->refreshCart();
+        $this->refreshActiveCarts();
     }
 
     /* === Yangi klient formasi === */
@@ -1375,12 +1557,17 @@ class Pos extends Page
             'phone'     => $phone,
         ]);
 
-        $this->selectedClientId                 = $client->id;
-        $this->cartClients[$this->activeCartId] = $client->id;
-        $this->newClient                        = $this->getDefaultNewClientData();
-        $this->showCreateClientForm             = false;
+        $this->resetCustomerDiscount(false);
+        $this->selectedClientId                           = $client->id;
+        $this->cartClients[$this->activeCartId]           = $client->id;
+        $this->saleWithoutClient                          = false;
+        $this->cartSaleWithoutClient[$this->activeCartId] = false;
+        $this->newClient                                  = $this->getDefaultNewClientData();
+        $this->showCreateClientForm                       = false;
         $this->loadClients();
         $this->persistCartMeta();
+        $this->refreshCart();
+        $this->refreshActiveCarts();
 
         Notification::make()
             ->title('Yangi klient yaratildi')

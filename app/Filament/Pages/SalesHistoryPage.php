@@ -151,6 +151,12 @@ class SalesHistoryPage extends Page implements HasTable
                     ->numeric()
                     ->sortable(),
 
+                TextColumn::make('customer_discount_amount')
+                    ->label('Mijoz chegirmasi')
+                    ->numeric()
+                    ->sortable()
+                    ->toggleable(),
+
                 TextColumn::make('paid_amount')
                     ->label('To‘langan')
                     ->numeric()
@@ -254,11 +260,11 @@ class SalesHistoryPage extends Page implements HasTable
                         Select::make('payment_type')
                             ->label('To‘lov turi')
                             ->options([
-                                'cash'     => 'Naqd',
-                                'card'     => 'Karta',
-                                'debt'     => 'Qarz',
-                                'partial'  => 'Qisman',
-                                'mixed'    => 'Karta + Naqd',
+                                'cash'    => 'Naqd',
+                                'card'    => 'Karta',
+                                'debt'    => 'Qarz',
+                                'partial' => 'Qisman',
+                                'mixed'   => 'Karta + Naqd',
                             ])
                             ->required()
                             ->reactive(),

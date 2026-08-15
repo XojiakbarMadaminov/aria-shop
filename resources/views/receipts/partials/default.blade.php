@@ -116,14 +116,27 @@
     <span>Jami mahsulotlar:</span>
     <span>{{ rtrim(rtrim(number_format((float) ($totals['qty'] ?? 0), 2, '.', ''), '0'), '.') }} dona</span>
 </div>
-@if(($totals['discount_total'] ?? 0) > 0)
+@if(($totals['discount_total'] ?? 0) > 0 || ($totals['customer_discount_amount'] ?? 0) > 0)
     <div class="item-row bold">
         <span>Subtotal:</span>
         <span>{{ number_format((float) ($totals['subtotal'] ?? 0), 0, '.', ' ') }} so'm</span>
     </div>
+@endif
+@if(($totals['discount_total'] ?? 0) > 0)
     <div class="item-row bold">
-        <span>Chegirma:</span>
+        <span>Avtomatik chegirma:</span>
         <span>-{{ number_format((float) ($totals['discount_total'] ?? 0), 0, '.', ' ') }} so'm</span>
+    </div>
+@endif
+@if(($totals['customer_discount_amount'] ?? 0) > 0)
+    @php
+        $customerDiscountLabel = ($totals['customer_discount_type'] ?? null) === 'percent'
+            ? rtrim(rtrim(number_format((float) ($totals['customer_discount_value'] ?? 0), 2, '.', ''), '0'), '.') . '%'
+            : number_format((float) ($totals['customer_discount_value'] ?? 0), 0, '.', ' ') . " so'm";
+    @endphp
+    <div class="item-row bold">
+        <span>Mijoz chegirmasi ({{ $customerDiscountLabel }}):</span>
+        <span>-{{ number_format((float) $totals['customer_discount_amount'], 0, '.', ' ') }} so'm</span>
     </div>
 @endif
 <div class="item-row bold" style="font-size:15px;">

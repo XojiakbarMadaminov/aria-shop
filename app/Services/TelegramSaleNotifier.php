@@ -140,18 +140,32 @@ class TelegramSaleNotifier
      */
     private function formatTotalsLines(Sale $sale, string $currency): array
     {
-        $quantityTotal = (float) $sale->items->sum('quantity');
-        $subtotal      = (float) ($sale->subtotal_amount ?: $sale->items->sum('total'));
-        $discountTotal = (float) ($sale->discount_total ?? 0);
-        $total         = (float) $sale->total_amount;
+        $quantityTotal          = (float) $sale->items->sum('quantity');
+        $subtotal               = (float) ($sale->subtotal_amount ?: $sale->items->sum('total'));
+        $discountTotal          = (float) ($sale->discount_total ?? 0);
+        $customerDiscountAmount = (float) ($sale->customer_discount_amount ?? 0);
+        $total                  = (float) $sale->total_amount;
 
         $lines = [
             'Jami mahsulotlar: ' . $this->formatQuantity($quantityTotal) . ' dona',
         ];
 
-        if ($discountTotal > 0) {
+        if ($discountTotal > 0 || $customerDiscountAmount > 0) {
             $lines[] = 'Subtotal: ' . $this->formatMoney($subtotal) . " {$currency}";
-            $lines[] = 'Chegirma: -' . $this->formatMoney($discountTotal) . " {$currency}";
+        }
+
+        if ($discountTotal > 0) {
+            $lines[] = 'Avtomatik chegirma: -' . $this->formatMoney($discountTotal) . " {$currency}";
+        }
+
+        if ($customerDiscountAmount > 0) {
+            $customerDiscountValue = (float) ($sale->customer_discount_value ?? 0);
+            $customerDiscountLabel = $sale->customer_discount_type === CustomerDiscountService::TYPE_PERCENT
+                ? $this->formatQuantity($customerDiscountValue) . '%'
+                : $this->formatMoney($customerDiscountValue) . " {$currency}";
+
+            $lines[] = 'Mijoz chegirmasi (' . $customerDiscountLabel . '): -'
+                . $this->formatMoney($customerDiscountAmount) . " {$currency}";
         }
 
         $lines[] = 'JAMI SUMMA: ' . $this->formatMoney($total) . " {$currency}";

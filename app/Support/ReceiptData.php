@@ -36,13 +36,16 @@ class ReceiptData
                 ];
             })->toArray(),
             'totals' => [
-                'qty'                    => (float) $items->sum('quantity'),
-                'amount'                 => (float) $sale->total_amount,
-                'subtotal'               => (float) ($sale->subtotal_amount ?: $items->sum('total')),
-                'product_discount_total' => (float) ($sale->product_discount_total ?? 0),
-                'order_discount_total'   => (float) ($sale->order_discount_total ?? 0),
-                'discount_total'         => (float) ($sale->discount_total ?? 0),
-                'applied_discounts'      => $sale->applied_discounts ?? [],
+                'qty'                      => (float) $items->sum('quantity'),
+                'amount'                   => (float) $sale->total_amount,
+                'subtotal'                 => (float) ($sale->subtotal_amount ?: $items->sum('total')),
+                'product_discount_total'   => (float) ($sale->product_discount_total ?? 0),
+                'order_discount_total'     => (float) ($sale->order_discount_total ?? 0),
+                'discount_total'           => (float) ($sale->discount_total ?? 0),
+                'applied_discounts'        => $sale->applied_discounts ?? [],
+                'customer_discount_type'   => $sale->customer_discount_type,
+                'customer_discount_value'  => (float) ($sale->customer_discount_value ?? 0),
+                'customer_discount_amount' => (float) ($sale->customer_discount_amount ?? 0),
             ],
             'date' => $created instanceof \DateTimeInterface
                 ? $created->format('d.m.Y H:i:s')

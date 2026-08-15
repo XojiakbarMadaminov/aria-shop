@@ -751,14 +751,22 @@
                         <span>Mahsulotlar soni:</span>
                         <span class="font-medium text-gray-800 dark:text-gray-200">{{ $totals['qty'] }} dona</span>
                     </div>
-                    @if(($totals['discount_total'] ?? 0) > 0)
+                    @if(($totals['discount_total'] ?? 0) > 0 || ($totals['customer_discount_amount'] ?? 0) > 0)
                         <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400">
                             <span>Subtotal:</span>
                             <span class="font-medium text-gray-800 dark:text-gray-200">{{ number_format($totals['subtotal'] ?? 0, 0, '.', ' ') }} so'm</span>
                         </div>
+                    @endif
+                    @if(($totals['discount_total'] ?? 0) > 0)
                         <div class="flex justify-between text-sm text-success-700 dark:text-success-400">
-                            <span>Chegirma:</span>
+                            <span>Avtomatik chegirma:</span>
                             <span class="font-medium">-{{ number_format($totals['discount_total'] ?? 0, 0, '.', ' ') }} so'm</span>
+                        </div>
+                    @endif
+                    @if(($totals['customer_discount_amount'] ?? 0) > 0)
+                        <div class="flex justify-between text-sm text-primary-700 dark:text-primary-400">
+                            <span>Mijoz chegirmasi:</span>
+                            <span class="font-medium">-{{ number_format($totals['customer_discount_amount'], 0, '.', ' ') }} so'm</span>
                         </div>
                     @endif
                     <div class="flex justify-between text-lg font-semibold text-gray-900 dark:text-white">
@@ -1072,7 +1080,7 @@
 
                     {{-- To'lov usullari --}}
                     @if($selectedClientId)
-                        <x-filament::card class="mt-0">
+                        <x-filament::card class="mt-0" x-data="{ selectedPayment: $wire.entangle('paymentType') }">
                             <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
                                 To'lov usulini tanlang
                             </h3>
@@ -1081,11 +1089,11 @@
                                 {{-- Naqd --}}
                                 <button
                                     wire:click="selectPaymentType('cash')"
-                                    class="p-4 rounded-lg border-2 transition-all text-center
-                                        {{ $paymentType === 'cash'
-                                            ? 'border-success-500 bg-success-50 dark:bg-success-900/20'
-                                            : 'border-gray-300 hover:border-success-400 dark:border-gray-600'
-                                        }}"
+                                    x-on:click="selectedPayment = 'cash'"
+                                    class="p-4 rounded-lg border-2 transition-all text-center"
+                                    x-bind:class="selectedPayment === 'cash'
+                                        ? 'border-success-500 bg-success-50 dark:bg-success-900/20'
+                                        : 'border-gray-300 hover:border-success-400 dark:border-gray-600'"
                                 >
                                     <div class="text-3xl mb-2">💵</div>
                                     <div class="font-medium text-gray-900 dark:text-gray-100">Naqd</div>
@@ -1094,11 +1102,11 @@
                                 {{-- Karta --}}
                                 <button
                                     wire:click="selectPaymentType('card')"
-                                    class="p-4 rounded-lg border-2 transition-all text-center
-                                        {{ $paymentType === 'card'
-                                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                                            : 'border-gray-300 hover:border-primary-400 dark:border-gray-600'
-                                        }}"
+                                    x-on:click="selectedPayment = 'card'"
+                                    class="p-4 rounded-lg border-2 transition-all text-center"
+                                    x-bind:class="selectedPayment === 'card'
+                                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                                        : 'border-gray-300 hover:border-primary-400 dark:border-gray-600'"
                                 >
                                     <div class="text-3xl mb-2">💳</div>
                                     <div class="font-medium text-gray-900 dark:text-gray-100">Karta</div>
@@ -1107,11 +1115,11 @@
                                 {{-- Qarz --}}
                                 <button
                                     wire:click="selectPaymentType('debt')"
-                                    class="p-4 rounded-lg border-2 transition-all text-center
-                                        {{ $paymentType === 'debt'
-                                            ? 'border-warning-500 bg-warning-50 dark:bg-warning-900/20'
-                                            : 'border-gray-300 hover:border-warning-400 dark:border-gray-600'
-                                        }}"
+                                    x-on:click="selectedPayment = 'debt'"
+                                    class="p-4 rounded-lg border-2 transition-all text-center"
+                                    x-bind:class="selectedPayment === 'debt'
+                                        ? 'border-warning-500 bg-warning-50 dark:bg-warning-900/20'
+                                        : 'border-gray-300 hover:border-warning-400 dark:border-gray-600'"
                                 >
                                     <div class="text-3xl mb-2">📋</div>
                                     <div class="font-medium text-gray-900 dark:text-gray-100">Qarz</div>
@@ -1120,11 +1128,11 @@
                                 {{-- Qisman --}}
                                 <button
                                     wire:click="selectPaymentType('partial')"
-                                    class="p-4 rounded-lg border-2 transition-all text-center
-                                        {{ $paymentType === 'partial'
-                                            ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                                            : 'border-gray-300 hover:border-purple-400 dark:border-gray-600'
-                                        }}"
+                                    x-on:click="selectedPayment = 'partial'"
+                                    class="p-4 rounded-lg border-2 transition-all text-center"
+                                    x-bind:class="selectedPayment === 'partial'
+                                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                                        : 'border-gray-300 hover:border-purple-400 dark:border-gray-600'"
                                 >
                                     <div class="text-3xl mb-2">🔀</div>
                                     <div class="font-medium text-gray-900 dark:text-gray-100">Qisman</div>
@@ -1133,11 +1141,11 @@
                                 {{-- Naqd + Karta --}}
                                 <button
                                     wire:click="selectPaymentType('mixed')"
-                                    class="p-4 rounded-lg border-2 transition-all text-center
-                                        {{ $paymentType === 'mixed'
-                                            ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                                            : 'border-gray-300 hover:border-purple-400 dark:border-gray-600'
-                                        }}"
+                                    x-on:click="selectedPayment = 'mixed'"
+                                    class="p-4 rounded-lg border-2 transition-all text-center"
+                                    x-bind:class="selectedPayment === 'mixed'
+                                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                                        : 'border-gray-300 hover:border-purple-400 dark:border-gray-600'"
                                 >
                                     <div class="text-3xl mb-2">💳+💵</div>
                                     <div class="font-medium text-gray-900 dark:text-gray-100">Karta + Naqd</div>
@@ -1146,15 +1154,106 @@
                                 {{-- Oldindan buyurtma --}}
                                 <button
                                     wire:click="selectPaymentType('preorder')"
-                                    class="p-4 rounded-lg border-2 transition-all text-center
-                                        {{ $paymentType === 'preorder'
-                                            ? 'border-sky-500 bg-sky-50 dark:bg-sky-900/20'
-                                            : 'border-gray-300 hover:border-sky-400 dark:border-gray-600'
-                                        }}"
+                                    x-on:click="selectedPayment = 'preorder'"
+                                    class="p-4 rounded-lg border-2 transition-all text-center"
+                                    x-bind:class="selectedPayment === 'preorder'
+                                        ? 'border-sky-500 bg-sky-50 dark:bg-sky-900/20'
+                                        : 'border-gray-300 hover:border-sky-400 dark:border-gray-600'"
                                 >
                                     <div class="text-3xl mb-2">⏳</div>
                                     <div class="font-medium text-gray-900 dark:text-gray-100">Oldindan buyurtma</div>
                                 </button>
+                            </div>
+
+                            <div
+                                class="mt-4 rounded-lg border border-gray-200 p-3 dark:border-gray-700"
+                                x-data="{
+                                    discountType: $wire.entangle('customerDiscountType').live,
+                                    baseAmount: @js((float) ($totals['amount_before_customer_discount'] ?? $totals['amount'] ?? 0)),
+                                }"
+                            >
+                                <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200">Mijoz chegirmasi</h4>
+                                <div class="mt-3 grid gap-3 md:grid-cols-2">
+                                    <div>
+                                        <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            Chegirma turi
+                                        </label>
+                                        <div
+                                            class="grid grid-cols-2 gap-1.5 rounded-xl bg-gray-100 p-1.5 ring-1 ring-gray-200 dark:bg-white/5 dark:ring-white/10"
+                                            role="radiogroup"
+                                            aria-label="Chegirma turi"
+                                        >
+                                            <label class="cursor-pointer">
+                                                <input
+                                                    type="radio"
+                                                    value="percent"
+                                                    x-model="discountType"
+                                                    class="sr-only"
+                                                >
+                                                <span
+                                                    class="flex min-h-12 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-200"
+                                                    x-bind:class="discountType === 'percent'
+                                                        ? 'bg-white text-primary-700 shadow-sm ring-1 ring-primary-500/30 dark:bg-primary-500/15 dark:text-primary-300 dark:ring-primary-400/40'
+                                                        : 'text-gray-600 hover:bg-white/70 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-200'"
+                                                >
+                                                    <span
+                                                        class="flex size-7 items-center justify-center rounded-md"
+                                                        x-bind:class="discountType === 'percent'
+                                                            ? 'bg-primary-100 text-primary-700 dark:bg-primary-500/20 dark:text-primary-300'
+                                                            : 'bg-gray-200 text-gray-500 dark:bg-white/10 dark:text-gray-400'"
+                                                    >
+                                                        %
+                                                    </span>
+                                                    Foizda
+                                                </span>
+                                            </label>
+
+                                            <label class="cursor-pointer">
+                                                <input
+                                                    type="radio"
+                                                    value="fixed"
+                                                    x-model="discountType"
+                                                    class="sr-only"
+                                                >
+                                                <span
+                                                    class="flex min-h-12 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-200"
+                                                    x-bind:class="discountType === 'fixed'
+                                                        ? 'bg-white text-primary-700 shadow-sm ring-1 ring-primary-500/30 dark:bg-primary-500/15 dark:text-primary-300 dark:ring-primary-400/40'
+                                                        : 'text-gray-600 hover:bg-white/70 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-200'"
+                                                >
+                                                    <span
+                                                        class="flex size-7 items-center justify-center rounded-md text-xs"
+                                                        x-bind:class="discountType === 'fixed'
+                                                            ? 'bg-primary-100 text-primary-700 dark:bg-primary-500/20 dark:text-primary-300'
+                                                            : 'bg-gray-200 text-gray-500 dark:bg-white/10 dark:text-gray-400'"
+                                                    >
+                                                        so'm
+                                                    </span>
+                                                    Summada
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            <span x-text="discountType === 'percent' ? 'Foiz (%)' : 'Summa (so\'m)'"></span>
+                                        </label>
+                                        <x-filament::input
+                                            type="number"
+                                            min="0"
+                                            x-bind:max="discountType === 'percent' ? 100 : baseAmount"
+                                            step="0.01"
+                                            wire:model.live.debounce.300ms="customerDiscountValue"
+                                            x-bind:placeholder="discountType === 'percent' ? 'Masalan: 10' : 'Masalan: 50000'"
+                                        />
+                                    </div>
+                                </div>
+                                @if(($totals['customer_discount_amount'] ?? 0) > 0)
+                                    <div class="mt-3 flex items-center justify-between text-sm text-primary-700 dark:text-primary-400">
+                                        <span>Qo'llanilgan chegirma:</span>
+                                        <span class="font-semibold">-{{ number_format($totals['customer_discount_amount'], 0, '.', ' ') }} so'm</span>
+                                    </div>
+                                @endif
                             </div>
 
                             @if($paymentType === 'partial')

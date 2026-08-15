@@ -21,6 +21,11 @@
         \App\Models\Sale::STATUS_REJECTED => 'bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-300',
         default => 'bg-green-100 text-green-800 dark:bg-green-500/10 dark:text-green-300',
     };
+    $customerDiscountLabel = match($sale->customer_discount_type) {
+        'percent' => rtrim(rtrim(number_format((float) $sale->customer_discount_value, 2, '.', ''), '0'), '.') . '%',
+        'fixed' => number_format((float) $sale->customer_discount_value, 2) . " so'm",
+        default => '—',
+    };
 @endphp
 
 <div class="space-y-4">
@@ -66,8 +71,17 @@
                 <div class="font-medium">{{ number_format($sale->subtotal_amount ?: $sale->total_amount, 2) }}</div>
             </div>
             <div>
-                <div class="text-gray-500">Chegirma</div>
+                <div class="text-gray-500">Avtomatik chegirma</div>
                 <div class="font-medium">{{ number_format($sale->discount_total ?? 0, 2) }}</div>
+            </div>
+            <div>
+                <div class="text-gray-500">Mijoz chegirmasi</div>
+                <div class="font-medium">
+                    {{ number_format($sale->customer_discount_amount ?? 0, 2) }}
+                    @if(($sale->customer_discount_amount ?? 0) > 0)
+                        <span class="text-gray-500">({{ $customerDiscountLabel }})</span>
+                    @endif
+                </div>
             </div>
             <div>
                 <div class="text-gray-500">Jami summa</div>
