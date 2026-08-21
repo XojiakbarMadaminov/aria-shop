@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('debtors:send-sms')->dailyAt('9:30')->timezone('Asia/Tashkent');
 Schedule::command('telegram:send-daily-summary')->dailyAt('23:30')->timezone('Asia/Tashkent');
+Schedule::command('telegram:send-weekly-summary')->weeklyOn(1, '05:00')->timezone('Asia/Tashkent');
