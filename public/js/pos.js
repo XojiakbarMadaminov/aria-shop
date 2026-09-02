@@ -90,10 +90,10 @@ function printReceipt(html) {
 
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
+    iframe.style.left = '-10000px';
+    iframe.style.top = '0';
+    iframe.style.width = '80mm';
+    iframe.style.height = '100vh';
     iframe.style.border = '0';
     iframe.style.opacity = '0';
 
@@ -108,18 +108,40 @@ function printReceipt(html) {
         return false;
     }
 
-    printDocument.open();
-    printDocument.write(receiptDocument(html));
-    printDocument.close();
+    iframe.addEventListener('load', async () => {
+        await waitForReceiptResources(printDocument);
 
-    setTimeout(() => {
         printWindow.focus();
         printWindow.onafterprint = () => iframe.remove();
         printWindow.print();
         setTimeout(() => iframe.remove(), 10000);
-    }, 250);
+    }, { once: true });
+
+    printDocument.open();
+    printDocument.write(receiptDocument(html));
+    printDocument.close();
 
     return true;
+}
+
+function waitForReceiptResources(printDocument) {
+    const imagePromises = Array.from(printDocument.images).map((image) => {
+        if (image.complete) {
+            return Promise.resolve();
+        }
+
+        return new Promise((resolve) => {
+            image.addEventListener('load', resolve, { once: true });
+            image.addEventListener('error', resolve, { once: true });
+        });
+    });
+
+    const fontsReady = printDocument.fonts?.ready ?? Promise.resolve();
+
+    return Promise.race([
+        Promise.all([fontsReady, ...imagePromises]),
+        new Promise((resolve) => setTimeout(resolve, 3000)),
+    ]);
 }
 
 function scheduleReceiptPrint(event, attempt = 1) {
