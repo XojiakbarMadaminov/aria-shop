@@ -37,7 +37,9 @@ class ProductForm
                         TextInput::make('barcode')
                             ->label('Bar kod')
                             ->unique('products', 'barcode', ignoreRecord: true)
-                            ->numeric()
+                            ->tel()
+                            ->maxLength(32)
+                            ->rule('regex:/^[0-9]+$/')
                             ->required()
                             ->autofocus()
                             ->suffixAction(

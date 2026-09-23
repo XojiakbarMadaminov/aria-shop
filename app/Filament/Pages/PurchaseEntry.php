@@ -61,7 +61,7 @@ class PurchaseEntry extends Page implements HasForms
                     ->columns(2)
                     ->schema([
                         Select::make('supplier_id')
-                            ->label('Ta’minotchi')
+                            ->label('Taâ€™minotchi')
                             ->options(fn () => Supplier::orderBy('full_name')->pluck('full_name', 'id'))
                             ->searchable()
                             ->required()
@@ -337,7 +337,9 @@ class PurchaseEntry extends Page implements HasForms
                     TextInput::make('barcode')
                         ->label('Bar kod')
                         ->unique('products', 'barcode', ignoreRecord: true)
-                        ->numeric()
+                        ->tel()
+                        ->maxLength(32)
+                        ->rule('regex:/^[0-9]+$/')
                         ->required()
                         ->autofocus()
                         ->suffixAction(
