@@ -11,6 +11,7 @@ use App\Models\Category;
 use Illuminate\Support\Arr;
 use App\Models\ProductStock;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Support\XlsxWorksheetReader;
 
 class ProductPackageImportService
@@ -18,7 +19,7 @@ class ProductPackageImportService
     public function __construct(private readonly XlsxWorksheetReader $reader) {}
 
     /**
-     * @return array{created: int, updated: int, skipped: int, errors: array<int, string>}
+     * @return array{created: int, updated: int, merged: int, skipped: int, errors: array<int, string>}
      */
     public function import(string $path, Store $store, Stock $stock): array
     {
@@ -30,12 +31,16 @@ class ProductPackageImportService
             throw new RuntimeException('Excel fayl bo‘sh.');
         }
 
-        $header = array_map(fn (string $value): string => $this->normalizeHeader($value), array_shift($rows));
+        $header    = array_map(fn (string $value): string => $this->normalizeHeader($value), array_shift($rows));
+        $totalRows = count($rows);
 
-        $created = 0;
-        $updated = 0;
-        $skipped = 0;
-        $errors  = [];
+        $created        = 0;
+        $updated        = 0;
+        $merged         = 0;
+        $skipped        = 0;
+        $errors         = [];
+        $preparedRows   = [];
+        $barcodeIndexes = [];
 
         foreach ($rows as $index => $row) {
             $rowNumber = $index + 2;
@@ -45,24 +50,69 @@ class ProductPackageImportService
                 continue;
             }
 
-            $result = $this->importRow($data, $store, $stock, $rowNumber);
+            $preparedRow = $this->prepareRow($data, $rowNumber);
+
+            if (is_string($preparedRow)) {
+                $skipped++;
+                $errors[] = $preparedRow;
+
+                continue;
+            }
+
+            $barcode = $preparedRow['barcode'];
+
+            if ($barcode !== '' && array_key_exists($barcode, $barcodeIndexes)) {
+                $preparedRowIndex = $barcodeIndexes[$barcode];
+
+                if (!$this->hasMatchingProductDetails($preparedRows[$preparedRowIndex], $preparedRow)) {
+                    $skipped++;
+                    $errors[] = "{$rowNumber}-qator: {$barcode} barcode uchun nom, kategoriya yoki narxlar boshqa qator bilan mos emas.";
+
+                    continue;
+                }
+
+                $preparedRow['quantity'] += $preparedRows[$preparedRowIndex]['quantity'];
+                $preparedRows[$preparedRowIndex] = $preparedRow;
+                $merged++;
+
+                continue;
+            }
+
+            if ($barcode !== '') {
+                $barcodeIndexes[$barcode] = count($preparedRows);
+            }
+
+            $preparedRows[] = $preparedRow;
+        }
+
+        foreach ($preparedRows as $preparedRow) {
+            $result = $this->importRow($preparedRow, $store, $stock);
 
             if ($result === 'created') {
                 $created++;
             } elseif ($result === 'updated') {
                 $updated++;
-            } else {
-                $skipped++;
-                $errors[] = $result;
             }
         }
 
-        return [
+        $summary = [
             'created' => $created,
             'updated' => $updated,
+            'merged'  => $merged,
             'skipped' => $skipped,
             'errors'  => $errors,
         ];
+
+        Log::info('Product Excel import completed.', [
+            'file'              => basename($path),
+            'store_id'          => $store->id,
+            'stock_id'          => $stock->id,
+            'total_rows'        => $totalRows,
+            'imported_products' => $created + $updated,
+            ...$summary,
+        ]);
+
+        return $summary;
     }
 
     private function ensureStockBelongsToStore(Store $store, Stock $stock): void
@@ -98,8 +148,9 @@ class ProductPackageImportService
 
     /**
      * @param  array<string, string>  $data
+     * @return array{name: string, category_name: string, barcode: string, initial_price: int, price: int, quantity: int}|string
      */
-    private function importRow(array $data, Store $store, Stock $stock, int $rowNumber): string
+    private function prepareRow(array $data, int $rowNumber): array|string
     {
         $categoryName = trim((string) Arr::get($data, 'category', ''));
         $name         = trim((string) Arr::get($data, 'name', ''));
@@ -121,7 +172,6 @@ class ProductPackageImportService
         $barcode      = trim((string) Arr::get($data, 'barcode', ''));
         $initialPrice = $this->toIntNullable(Arr::get($data, 'purchase_price', Arr::get($data, 'initial_price')));
         $price        = $this->toIntNullable(Arr::get($data, 'sale_price', Arr::get($data, 'price')));
-        $categoryId   = $this->resolveCategoryId($categoryName);
 
         if ($initialPrice === null || $initialPrice < 0) {
             return "{$rowNumber}-qator: purchase_price 0 yoki undan katta butun son bo‘lishi kerak.";
@@ -131,13 +181,31 @@ class ProductPackageImportService
             return "{$rowNumber}-qator: sale_price 0 yoki undan katta butun son bo‘lishi kerak.";
         }
 
+        return [
+            'name'          => $name,
+            'category_name' => $categoryName,
+            'barcode'       => $barcode,
+            'initial_price' => $initialPrice,
+            'price'         => $price,
+            'quantity'      => $quantity,
+        ];
+    }
+
+    /**
+     * @param  array{name: string, category_name: string, barcode: string, initial_price: int, price: int, quantity: int}  $data
+     */
+    private function importRow(array $data, Store $store, Stock $stock): string
+    {
+        $barcode = $data['barcode'];
+
         if ($barcode === '') {
             $barcode = $this->generateUniqueBarcode($store);
         }
 
-        $result = 'created';
+        $categoryId = $this->resolveCategoryId($data['category_name']);
+        $result     = 'created';
 
-        DB::transaction(function () use ($barcode, $categoryId, $initialPrice, $name, $price, $quantity, $stock, $store, &$result): void {
+        DB::transaction(function () use ($barcode, $categoryId, $data, $stock, $store, &$result): void {
             $product = Product::query()
                 ->withoutGlobalScopes()
                 ->where('store_id', $store->id)
@@ -152,9 +220,9 @@ class ProductPackageImportService
                 $product->barcode  = $barcode;
             }
 
-            $product->name          = $name;
-            $product->initial_price = $initialPrice;
-            $product->price         = $price;
+            $product->name          = $data['name'];
+            $product->initial_price = $data['initial_price'];
+            $product->price         = $data['price'];
             $product->category_id   = $categoryId;
             $product->type          = Product::TYPE_PACKAGE;
             $product->save();
@@ -166,12 +234,24 @@ class ProductPackageImportService
                     'stock_id'        => $stock->id,
                 ],
                 [
-                    'quantity' => $quantity,
+                    'quantity' => $data['quantity'],
                 ]
             );
         });
 
         return $result;
+    }
+
+    /**
+     * @param  array{name: string, category_name: string, barcode: string, initial_price: int, price: int, quantity: int}  $firstRow
+     * @param  array{name: string, category_name: string, barcode: string, initial_price: int, price: int, quantity: int}  $secondRow
+     */
+    private function hasMatchingProductDetails(array $firstRow, array $secondRow): bool
+    {
+        return $firstRow['name'] === $secondRow['name']
+            && $firstRow['category_name'] === $secondRow['category_name']
+            && $firstRow['initial_price'] === $secondRow['initial_price']
+            && $firstRow['price'] === $secondRow['price'];
     }
 
     private function normalizeHeader(string $value): string

@@ -4,6 +4,7 @@ use App\Models\Stock;
 use App\Models\Store;
 use App\Models\Product;
 use App\Models\ProductStock;
+use Illuminate\Support\Facades\Log;
 use App\Services\ProductPackageImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -36,6 +37,7 @@ it('imports package products from excel into the selected stock', function () {
     expect($summary)->toMatchArray([
         'created' => 2,
         'updated' => 0,
+        'merged'  => 0,
         'skipped' => 0,
     ]);
 
@@ -89,6 +91,7 @@ it('updates an existing product when the store barcode already exists', function
     $path = createPackageProductsImportWorkbook([
         ['name', 'barcode', 'category', 'purchase_price', 'sale_price', 'quantity'],
         ['New name', '123456789001', 'New category', '111000', '222000', '9'],
+        ['New name', '123456789001', 'New category', '111000', '222000', '6'],
     ]);
 
     try {
@@ -100,6 +103,7 @@ it('updates an existing product when the store barcode already exists', function
     expect($summary)->toMatchArray([
         'created' => 0,
         'updated' => 1,
+        'merged'  => 1,
         'skipped' => 0,
     ]);
 
@@ -111,7 +115,111 @@ it('updates an existing product when the store barcode already exists', function
         ->and(ProductStock::query()
             ->where('product_id', $product->id)
             ->where('stock_id', $stock->id)
-            ->value('quantity'))->toBe(9);
+            ->value('quantity'))->toBe(15);
+});
+
+it('sums quantities for repeated barcodes before creating a product', function () {
+    Log::spy();
+
+    $store = Store::query()->create([
+        'name'    => 'Main store',
+        'address' => 'Test address',
+        'phone'   => '+998901234569',
+    ]);
+
+    $stock = Stock::query()->create(['name' => 'Showroom', 'is_active' => true]);
+    $store->stocks()->attach($stock->id);
+
+    $path = createPackageProductsImportWorkbook([
+        ['name', 'barcode', 'category', 'purchase_price', 'sale_price', 'quantity'],
+        ['Paypoq', '016008500992', 'Paypoq', '3000', '6000', '30'],
+        ['Paypoq', '016008500992', 'Paypoq', '3000', '6000', '2'],
+        ['Paypoq', '016008500992', 'Paypoq', '3000', '6000', '51'],
+    ]);
+
+    try {
+        $summary = app(ProductPackageImportService::class)->import($path, $store, $stock);
+    } finally {
+        unlink($path);
+    }
+
+    expect($summary)->toMatchArray([
+        'created' => 1,
+        'updated' => 0,
+        'merged'  => 2,
+        'skipped' => 0,
+    ]);
+
+    $product = Product::query()
+        ->withoutGlobalScopes()
+        ->where('store_id', $store->id)
+        ->where('barcode', '016008500992')
+        ->sole();
+
+    expect(Product::query()
+        ->withoutGlobalScopes()
+        ->where('store_id', $store->id)
+        ->where('barcode', '016008500992')
+        ->count())->toBe(1)
+        ->and(ProductStock::query()
+            ->where('product_id', $product->id)
+            ->where('stock_id', $stock->id)
+            ->value('quantity'))->toBe(83);
+
+    Log::shouldHaveReceived('info')
+        ->once()
+        ->withArgs(fn (string $message, array $context): bool => $message === 'Product Excel import completed.'
+            && $context['store_id'] === $store->id
+            && $context['stock_id'] === $stock->id
+            && $context['total_rows'] === 3
+            && $context['imported_products'] === 1
+            && $context['created'] === 1
+            && $context['updated'] === 0
+            && $context['merged'] === 2
+            && $context['skipped'] === 0
+            && $context['errors'] === []);
+});
+
+it('skips a repeated barcode when its product details conflict', function () {
+    $store = Store::query()->create([
+        'name'    => 'Main store',
+        'address' => 'Test address',
+        'phone'   => '+998901234570',
+    ]);
+
+    $stock = Stock::query()->create(['name' => 'Showroom', 'is_active' => true]);
+    $store->stocks()->attach($stock->id);
+
+    $path = createPackageProductsImportWorkbook([
+        ['name', 'barcode', 'category', 'purchase_price', 'sale_price', 'quantity'],
+        ['Paypoq', '016008500992', 'Paypoq', '3000', '6000', '30'],
+        ['Paypoq', '016008500992', 'Paypoq', '3000', '7000', '2'],
+    ]);
+
+    try {
+        $summary = app(ProductPackageImportService::class)->import($path, $store, $stock);
+    } finally {
+        unlink($path);
+    }
+
+    expect($summary)->toMatchArray([
+        'created' => 1,
+        'updated' => 0,
+        'merged'  => 0,
+        'skipped' => 1,
+    ])->and($summary['errors'])->toHaveCount(1)
+        ->and($summary['errors'][0])->toContain('016008500992 barcode');
+
+    $product = Product::query()
+        ->withoutGlobalScopes()
+        ->where('store_id', $store->id)
+        ->where('barcode', '016008500992')
+        ->sole();
+
+    expect(ProductStock::query()
+        ->where('product_id', $product->id)
+        ->where('stock_id', $stock->id)
+        ->value('quantity'))->toBe(30);
 });
 
 /**

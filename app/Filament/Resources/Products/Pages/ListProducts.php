@@ -6,6 +6,7 @@ use Throwable;
 use App\Models\Stock;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
+use Illuminate\Support\Facades\Log;
 use Filament\Forms\Components\Select;
 use Illuminate\Support\Facades\Storage;
 use Filament\Notifications\Notification;
@@ -81,6 +82,14 @@ class ListProducts extends ListRecords
                     try {
                         $summary = $importService->import(Storage::disk('local')->path($file), $store, $stock);
                     } catch (Throwable $exception) {
+                        Log::error('Product Excel import failed.', [
+                            'file'            => basename($file),
+                            'store_id'        => $store->id,
+                            'stock_id'        => $stock->id,
+                            'exception_class' => $exception::class,
+                            'error'           => $exception->getMessage(),
+                        ]);
+
                         Notification::make()
                             ->danger()
                             ->title('Import bajarilmadi')
@@ -90,7 +99,7 @@ class ListProducts extends ListRecords
                         return;
                     }
 
-                    $body = "Yaratildi: {$summary['created']}. Yangilandi: {$summary['updated']}. O‘tkazib yuborildi: {$summary['skipped']}.";
+                    $body = "Yaratildi: {$summary['created']}. Yangilandi: {$summary['updated']}. Birlashtirildi: {$summary['merged']}. O‘tkazib yuborildi: {$summary['skipped']}.";
 
                     if ($summary['errors'] !== []) {
                         $body .= ' ' . implode(' ', array_slice($summary['errors'], 0, 3));
