@@ -50,7 +50,7 @@
     <div class="receipt" id="sale-receipt">
         @include('receipts.partials.default', [
             'receiptData' => $receiptData,
-            'qrPath' => asset('images/taplink.png'),
+            'qrPath' => asset('images/taplink.png') . '?v=' . filemtime(public_path('images/taplink.png')),
         ])
     </div>
 

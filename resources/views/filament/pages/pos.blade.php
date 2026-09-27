@@ -22,7 +22,7 @@
                 <div id="receipt-content" class="receipt-content">
                     @include('receipts.partials.default', [
                         'receiptData' => $receiptData,
-                        'qrPath' => asset('images/taplink.png'),
+                        'qrPath' => asset('images/taplink.png') . '?v=' . filemtime(public_path('images/taplink.png')),
                     ])
                 </div>
 
