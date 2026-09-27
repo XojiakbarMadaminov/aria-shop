@@ -30,7 +30,7 @@
     </style>
     @php
         $receiptData  = \App\Support\ReceiptData::fromSale($sale);
-        $qrPublicPath = public_path('images/taplink.png');
+        $qrPublicPath = public_path('images/taplink-20260927.png');
         $qrPath       = is_file($qrPublicPath) ? ('file://' . $qrPublicPath) : null;
     @endphp
 </head>

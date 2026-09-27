@@ -991,7 +991,7 @@ class Pos extends Page
     {
         return view('receipts.partials.default', [
             'receiptData' => $this->receiptData,
-            'qrPath'      => asset('images/taplink.png') . '?v=' . filemtime(public_path('images/taplink.png')),
+            'qrPath'      => asset('images/taplink-20260927.png'),
         ])->render();
     }
 

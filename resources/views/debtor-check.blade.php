@@ -65,7 +65,7 @@
 <div class="divider"></div>
 
 <div class="center">
-    <img src="{{ public_path('images/taplink.png') }}" class="logo">
+    <img src="{{ public_path('images/taplink-20260927.png') }}" class="logo">
 </div>
 
 <div class="divider"></div>
