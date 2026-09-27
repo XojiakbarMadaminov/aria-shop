@@ -3,7 +3,13 @@
 namespace App\Filament\Resources\Products\Pages;
 
 use App\Models\Product;
+use App\Models\Category;
+use Filament\Actions\Action;
+use Filament\Schemas\Schema;
+use Filament\Support\Enums\Width;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Schemas\Components\Component;
 use App\Filament\Resources\Products\ProductResource;
 
 class CreateProduct extends CreateRecord
@@ -12,9 +18,62 @@ class CreateProduct extends CreateRecord
     protected $sizesData;
     protected $packageStockData;
 
+    protected ?int $createdProductIdForPrint = null;
+
+    public function getMaxContentWidth(): Width
+    {
+        return Width::SevenExtraLarge;
+    }
+
+    public function getFormActionsContentComponent(): Component
+    {
+        return parent::getFormActionsContentComponent()
+            ->key('productCreateFormActions');
+    }
+
+    protected function getCreateAnotherFormAction(): Action
+    {
+        return Action::make('createAndPrint')
+            ->label('Yaratish va chop etish')
+            ->icon('heroicon-o-printer')
+            ->color('gray')
+            ->modalHeading('Shtrix-kodni chop etish')
+            ->modalSubmitActionLabel('Yaratish va chop etish')
+            ->schema([
+                TextInput::make('copies')
+                    ->label('Chop etish soni')
+                    ->numeric()
+                    ->integer()
+                    ->minValue(1)
+                    ->required(),
+            ])
+            ->mountUsing(function (Schema $schema): void {
+                $schema->fill([
+                    'copies' => max(1, $this->getEnteredQuantity()),
+                ]);
+            })
+            ->action(function (array $data): void {
+                $this->createdProductIdForPrint = null;
+                $this->create(another: true);
+
+                if (!$this->createdProductIdForPrint) {
+                    return;
+                }
+
+                $this->redirect(route('product.barcode.pdf', [
+                    'product' => $this->createdProductIdForPrint,
+                    'size'    => '57x30',
+                    'copies'  => $data['copies'],
+                ]));
+            })
+            ->keyBindings(['mod+shift+s']);
+    }
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        $data['name']     = Category::query()->findOrFail($data['category_id'])->name;
         $data['store_id'] = auth()->user()?->current_store_id;
+        $data['type']     = Product::TYPE_PACKAGE;
 
         $this->sizesData        = $data['sizes'] ?? [];
         $this->packageStockData = collect($data)
@@ -61,5 +120,16 @@ class CreateProduct extends CreateRecord
                 ]);
             }
         }
+
+        $this->createdProductIdForPrint = $product->getKey();
+    }
+
+    protected function getEnteredQuantity(): int
+    {
+        $state = $this->form->getRawState();
+
+        return (int) collect($state)
+            ->filter(fn (mixed $value, string $key): bool => str_starts_with($key, 'pkg_stock_'))
+            ->sum(fn (mixed $value): int => (int) $value);
     }
 }

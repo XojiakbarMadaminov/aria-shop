@@ -27,21 +27,26 @@ class ProductForm
             ->components([
                 Section::make('Tovar maʼlumotlari')
                     ->columnSpanFull()
+                    ->description('Tovar nomi tanlangan kategoriya nomidan avtomatik olinadi.')
                     ->schema([
-                        TextInput::make('name')
-                            ->label('Nomi')
-                            ->unique()
+                        Select::make('category_id')
+                            ->label('Kategoriya')
+                            ->placeholder('Kategoriyani tanlang')
+                            ->relationship('category', 'name')
+                            ->searchable()
+                            ->preload()
                             ->required()
-                            ->columnSpanFull(),
+                            ->autofocus(),
 
                         TextInput::make('barcode')
                             ->label('Bar kod')
+                            ->placeholder('Bar kodni kiriting yoki avtomatik yarating')
                             ->unique('products', 'barcode', ignoreRecord: true)
                             ->tel()
                             ->maxLength(32)
                             ->rule('regex:/^[0-9]+$/')
                             ->required()
-                            ->autofocus()
+                            ->helperText('Faqat raqam kiriting.')
                             ->suffixAction(
                                 Action::make('generateBarcode')
                                     ->icon('heroicon-m-sparkles')
@@ -51,13 +56,8 @@ class ProductForm
                                     })
                             ),
 
-                        Select::make('category_id')
-                            ->label('Kategoriyasi')
-                            ->preload()
-                            ->relationship('category', 'name')
-                            ->searchable(),
-
                         Select::make('type')
+                            ->hidden()
                             ->label('Turi')
                             ->options([
                                 Product::TYPE_SIZE    => 'Razmerli',
@@ -74,21 +74,36 @@ class ProductForm
                                         ->toArray());
                                 }
                             }),
-                    ])->columns(3),
+                    ])
+                    ->columns([
+                        'default' => 1,
+                        'md'      => 2,
+                    ]),
 
                 Section::make('Narxlar')
                     ->columnSpanFull()
+                    ->description('Kelgan va sotish narxlarini so‘mda kiriting.')
                     ->schema([
                         TextInput::make('initial_price')
                             ->label('Kelgan narxi')
+                            ->placeholder('0')
                             ->numeric()
+                            ->minValue(0)
+                            ->suffix('so‘m')
                             ->required(),
 
                         TextInput::make('price')
                             ->label('Sotish narxi')
+                            ->placeholder('0')
                             ->numeric()
+                            ->minValue(0)
+                            ->suffix('so‘m')
                             ->required(),
-                    ])->columns(),
+                    ])
+                    ->columns([
+                        'default' => 1,
+                        'md'      => 2,
+                    ]),
 
                 Section::make('Variantlar va Stocklar')
                     ->columnSpanFull()
@@ -123,9 +138,9 @@ class ProductForm
 
                     ]),
 
-                Section::make('Paket miqdori')
+                Section::make('Miqdori')
                     ->columnSpanFull()
-                    ->description('Har bir ombor uchun umumiy paket miqdorini kiriting')
+                    ->description('Har bir ombordagi boshlang‘ich qoldiqni kiriting.')
                     ->visible(fn (Get $get) => ($get('type') ?? 'size') === 'package')
                     ->schema(function () use ($stocks) {
                         return [
@@ -136,8 +151,11 @@ class ProductForm
                                     foreach ($stocks as $id => $name) {
                                         $fields[] = TextInput::make("pkg_stock_{$id}")
                                             ->label($name)
+                                            ->placeholder('0')
                                             ->numeric()
-                                            ->default(0);
+                                            ->minValue(0)
+                                            ->suffix('dona')
+                                            ->required();
                                     }
 
                                     return $fields;
@@ -145,6 +163,7 @@ class ProductForm
                         ];
                     }),
                 Section::make('Rasm')
+                    ->hidden()
                     ->columnSpanFull()
                     ->schema(function () {
                         $upload = SpatieMediaLibraryFileUpload::make('images')

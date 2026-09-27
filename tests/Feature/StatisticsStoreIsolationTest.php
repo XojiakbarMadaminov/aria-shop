@@ -32,6 +32,35 @@ it('registers the top selling categories chart on the statistics dashboard', fun
         ->toContain(TopSellingCategoriesChart::class);
 });
 
+it('shows cash and card amounts in the total sales card', function () {
+    [$store, $stock, $user] = createStatisticsStoreContext('To‘lovlar filiali');
+
+    foreach ([
+        ['cash', 100_000, 0, 0],
+        ['card', 200_000, 0, 0],
+        ['mixed', 300_000, 120_000, 180_000],
+        ['debt', 400_000, 0, 0],
+        ['transfer', 50_000, 0, 0],
+        ['partial', 60_000, 0, 0],
+    ] as [$paymentType, $total, $mixedCash, $mixedCard]) {
+        Sale::withoutGlobalScopes()->create([
+            'store_id'          => $store->id,
+            'cart_id'           => fake()->unique()->numberBetween(1, 1_000_000),
+            'total_amount'      => $total,
+            'paid_amount'       => in_array($paymentType, ['debt', 'partial'], true) ? 0 : $total,
+            'remaining_amount'  => in_array($paymentType, ['debt', 'partial'], true) ? $total : 0,
+            'payment_type'      => $paymentType,
+            'mixed_cash_amount' => $mixedCash,
+            'mixed_card_amount' => $mixedCard,
+            'status'            => Sale::STATUS_COMPLETED,
+            'created_by'        => $user->id,
+        ]);
+    }
+
+    expect(statisticsCardDescriptions($user)['Umumiy sotuvlar'])
+        ->toBe("Naqd: 220,000 so'm · Karta: 380,000 so'm");
+});
+
 it('removes a discounted return only from its own store statistics', function () {
     [$firstStore, $firstStock, $firstUser]    = createStatisticsStoreContext('Birinchi filial');
     [$secondStore, $secondStock, $secondUser] = createStatisticsStoreContext('Ikkinchi filial');
@@ -411,6 +440,24 @@ function statisticsCardValues(User $user): array
 
     return collect($cards)
         ->mapWithKeys(fn (Stat $card): array => [(string) $card->getLabel() => (string) $card->getValue()])
+        ->all();
+}
+
+/**
+ * @return array<string, string>
+ */
+function statisticsCardDescriptions(User $user): array
+{
+    auth()->login($user);
+    $widget = new SalesStatsOverview;
+
+    /** @var array<int, Stat> $cards */
+    $cards = (function (): array {
+        return $this->getCards();
+    })->call($widget);
+
+    return collect($cards)
+        ->mapWithKeys(fn (Stat $card): array => [(string) $card->getLabel() => (string) $card->getDescription()])
         ->all();
 }
 

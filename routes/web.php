@@ -60,8 +60,9 @@ Route::get('/sales/{sale}/receipt-pdf', function (Sale $sale) {
 
 // 1. Bitta product uchun
 Route::get('/products/{product}/barcode-pdf', function (Product $product, Request $request) {
-    $size             = $request->get('size', '30x20');
+    $size             = $request->get('size', '57x30');
     $useDiscountPrice = $request->boolean('use_discount_price');
+    $copies           = max(1, $request->integer('copies', 1));
 
     $sizes = [
         '30x20' => [0, 0, 85.04, 56.69],   // 30mm x 20mm
@@ -69,7 +70,7 @@ Route::get('/products/{product}/barcode-pdf', function (Product $product, Reques
         '85x65' => [0, 0, 240.94, 184.25], // 85mm x 65mm
     ];
 
-    $paper = $sizes[$size] ?? $sizes['30x20'];
+    $paper = $sizes[$size] ?? $sizes['57x30'];
 
     $discountPrices = $useDiscountPrice
         ? collect([$product])->mapWithKeys(fn (Product $product): array => [
@@ -78,7 +79,7 @@ Route::get('/products/{product}/barcode-pdf', function (Product $product, Reques
         : collect();
 
     return Pdf::loadView('product-barcode', [
-        'products'       => collect([$product]),
+        'products'       => collect(range(1, $copies))->map(fn (): Product => $product),
         'size'           => $size,
         'discountPrices' => $discountPrices,
     ])
@@ -89,7 +90,7 @@ Route::get('/products/{product}/barcode-pdf', function (Product $product, Reques
 // 2. Ko‘p product uchun (masalan, tanlanganlar)
 Route::get('/products/barcodes/bulk', function (Request $request) {
     $ids  = explode(',', $request->input('ids', ''));
-    $size = $request->get('size', '30x20');
+    $size = $request->get('size', '57x30');
 
     $products = Product::whereIn('id', $ids)->get();
 
@@ -99,7 +100,7 @@ Route::get('/products/barcodes/bulk', function (Request $request) {
         '85x65' => [0, 0, 240.94, 184.25],
     ];
 
-    $paper = $sizes[$size] ?? $sizes['30x20'];
+    $paper = $sizes[$size] ?? $sizes['57x30'];
 
     return Pdf::loadView('product-barcode', [
         'products'       => $products,

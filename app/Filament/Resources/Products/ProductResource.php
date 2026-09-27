@@ -19,6 +19,7 @@ use App\Filament\Resources\Products\Schemas\ProductForm;
 use App\Filament\Resources\Products\Tables\ProductsTable;
 use App\Filament\Resources\Products\Pages\GalleryProducts;
 use App\Filament\Resources\Products\Schemas\ProductInfolist;
+use App\Filament\Resources\Products\Pages\AddExistingProduct;
 
 class ProductResource extends Resource
 {
@@ -55,11 +56,12 @@ class ProductResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'   => ListProducts::route('/'),
-            'gallery' => GalleryProducts::route('/gallery'),
-            'create'  => CreateProduct::route('/create'),
-            'view'    => ViewProduct::route('/{record}'),
-            'edit'    => EditProduct::route('/{record}/edit'),
+            'index'        => ListProducts::route('/'),
+            'gallery'      => GalleryProducts::route('/gallery'),
+            'create'       => CreateProduct::route('/create'),
+            'add-existing' => AddExistingProduct::route('/add-existing'),
+            'view'         => ViewProduct::route('/{record}'),
+            'edit'         => EditProduct::route('/{record}/edit'),
         ];
     }
 

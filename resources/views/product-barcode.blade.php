@@ -61,7 +61,7 @@
 <div style="display:none">&nbsp;</div>
 
 @php
-    $labelSize = $size ?? '30x20';
+    $labelSize = $size ?? '57x30';
     $discountPrices = $discountPrices ?? collect();
 
     // Sizing presets per label
@@ -113,7 +113,7 @@
         ],
     ];
 
-    $cfg = $presets[$labelSize] ?? $presets['30x20'];
+    $cfg = $presets[$labelSize] ?? $presets['57x30'];
 @endphp
 
 @foreach($products as $product)

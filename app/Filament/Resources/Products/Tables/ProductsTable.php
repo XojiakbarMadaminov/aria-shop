@@ -14,7 +14,6 @@ use App\Services\DiscountService;
 use Illuminate\Support\Collection;
 use Filament\Actions\RestoreAction;
 use Filament\Actions\BulkActionGroup;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Toggle;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
@@ -67,13 +66,13 @@ class ProductsTable
                     TextColumn::make('initial_price')->label('Kelgan narxi')->numeric(),
                     TextColumn::make('price')->label('Sotish narxi')->numeric(),
                     TextColumn::make('category.name')->label('Kategoriyasi')->sortable()->searchable(),
-                    TextColumn::make('type')->label('Turi')->badge()->formatStateUsing(function ($state) {
-                        return match ($state) {
-                            Product::TYPE_PACKAGE => 'Paket',
-                            Product::TYPE_COLOR   => 'Rang',
-                            default               => 'Razmer',
-                        };
-                    }),
+                    //                    TextColumn::make('type')->label('Turi')->badge()->formatStateUsing(function ($state) {
+                    //                        return match ($state) {
+                    //                            Product::TYPE_PACKAGE => 'Paket',
+                    //                            Product::TYPE_COLOR   => 'Rang',
+                    //                            default               => 'Razmer',
+                    //                        };
+                    //                    }),
                 ],
                 $stocks->map(function ($stock) {
                     return TextColumn::make("stock_{$stock->id}_qty")
@@ -127,14 +126,6 @@ class ProductsTable
                     ->label('Print Barcode')
                     ->icon('heroicon-o-printer')
                     ->schema([
-                        Select::make('size')
-                            ->label('Label razmeri')
-                            ->options([
-                                '30x20' => '3.0 cm x 2.0 cm',
-                                '57x30' => '5.7 cm x 3.0 cm',
-                            ])
-                            ->required(),
-
                         Toggle::make('use_discount_price')
                             ->label('Chegirma narxida chiqarish')
                             ->default(false)
@@ -144,7 +135,7 @@ class ProductsTable
                     ->action(function (array $data, Product $record) {
                         return redirect()->away(route('product.barcode.pdf', [
                             'product'            => $record->id,
-                            'size'               => $data['size'],
+                            'size'               => '57x30',
                             'use_discount_price' => (int) ($data['use_discount_price'] ?? false),
                         ]));
                     }),
@@ -170,21 +161,12 @@ class ProductsTable
                     BulkAction::make('bulk_print_barcode')
                         ->label('Barcodeni chop etish')
                         ->icon('heroicon-o-printer')
-                        ->schema([
-                            Select::make('size')
-                                ->label('Label razmeri')
-                                ->options([
-                                    '30x20' => '3.0 cm x 2.0 cm',
-                                    '57x30' => '5.7 cm x 3.0 cm',
-                                ])
-                                ->required(),
-                        ])
-                        ->action(function (Collection $records, array $data) {
+                        ->action(function (Collection $records) {
                             $ids = $records->pluck('id')->toArray();
 
                             return redirect()->away(route('product.barcodes.bulk', [
                                 'ids'  => implode(',', $ids),
-                                'size' => $data['size'],
+                                'size' => '57x30',
                             ]));
                         })
                         ->requiresConfirmation()

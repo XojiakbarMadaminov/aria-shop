@@ -22,11 +22,11 @@ class ListProducts extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('gallery')
-                ->label('Gallery')
-                ->icon('heroicon-o-photo')
-                ->color('gray')
-                ->url(ProductResource::getUrl('gallery')),
+            //            Action::make('gallery')
+            //                ->label('Gallery')
+            //                ->icon('heroicon-o-photo')
+            //                ->color('gray')
+            //                ->url(ProductResource::getUrl('gallery')),
             Action::make('importPackages')
                 ->label('Excel import')
                 ->icon('heroicon-o-arrow-up-tray')
@@ -111,6 +111,11 @@ class ListProducts extends ListRecords
                         ->body($body)
                         ->send();
                 }),
+            Action::make('addExistingProduct')
+                ->label('Mavjud tovarga qo‘shish')
+                ->icon('heroicon-o-plus-circle')
+                ->color('warning')
+                ->url(ProductResource::getUrl('add-existing')),
             CreateAction::make(),
 
         ];

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Products\Pages;
 
 use App\Models\Stock;
+use App\Models\Category;
 use App\Models\ProductStock;
 use Filament\Actions\ViewAction;
 use Filament\Actions\DeleteAction;
@@ -63,6 +64,8 @@ class EditProduct extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
+        $data['name'] = Category::query()->findOrFail($data['category_id'])->name;
+
         $this->sizesData        = $data['sizes'] ?? [];
         $this->packageStockData = collect($data)
             ->filter(fn ($v, $k) => str_starts_with($k, 'pkg_stock_'))

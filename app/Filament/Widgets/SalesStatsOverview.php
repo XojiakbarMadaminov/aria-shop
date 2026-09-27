@@ -42,6 +42,18 @@ class SalesStatsOverview extends BaseWidget
             ->get();
         $totalSales = $sales->sum('total_amount');
 
+        $cashSales = $sales->sum(fn (Sale $sale): float => match ($sale->payment_type) {
+            'cash'  => (float) $sale->total_amount,
+            'mixed' => (float) $sale->mixed_cash_amount,
+            default => 0.0,
+        });
+
+        $cardSales = $sales->sum(fn (Sale $sale): float => match ($sale->payment_type) {
+            'card'  => (float) $sale->total_amount,
+            'mixed' => (float) $sale->mixed_card_amount,
+            default => 0.0,
+        });
+
         $totalExpenses = Expense::query()
             ->whereBetween('date', [$start, $end])
             ->sum('amount');
@@ -118,7 +130,10 @@ class SalesStatsOverview extends BaseWidget
 
         return [
             Stat::make('Umumiy sotuvlar', number_format($netSales) . " so'm")
-                ->description('Tanlangan davr uchun umumiy sotuvlar')
+                ->description(
+                    'Naqd: ' . number_format($cashSales) . " so'm · "
+                    . 'Karta: ' . number_format($cardSales) . " so'm"
+                )
                 ->icon('heroicon-o-wallet')
                 ->color('success'),
             Stat::make('Foyda', number_format($netProfit) . " so'm")
