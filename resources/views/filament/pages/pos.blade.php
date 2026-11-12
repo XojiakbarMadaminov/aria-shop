@@ -50,6 +50,72 @@
         $posInputClass = 'fi-input block w-full rounded-lg border border-gray-300 outline outline-1 outline-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/40 dark:border-gray-700 dark:outline-gray-700 dark:bg-gray-900 dark:text-white';
     @endphp
 
+    @if($showMixedPaymentModal)
+        <div
+            x-data="posMixedPaymentInputs($wire)"
+            x-trap.inert.noscroll="true"
+            x-init="$nextTick(() => $refs.mixedPaymentCard.focus())"
+            x-on:keydown.escape.window="$wire.closeMixedPaymentModal()"
+            wire:click.self="closeMixedPaymentModal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mixed-payment-title"
+            class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 px-4 py-6"
+        >
+            <form wire:submit="closeMixedPaymentModal" class="flex w-full max-w-md flex-col gap-5 rounded-xl bg-white p-6 text-gray-900 shadow-xl dark:bg-gray-900 dark:text-gray-100">
+                <div class="flex items-center justify-between gap-3">
+                    <h3 id="mixed-payment-title" class="text-lg font-semibold">Aralash to‘lov</h3>
+                    <button type="button" wire:click="closeMixedPaymentModal" aria-label="Yopish" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                        <x-heroicon-o-x-mark class="h-6 w-6"/>
+                    </button>
+                </div>
+
+                <div class="flex flex-col gap-1 rounded-lg bg-gray-100 p-4 dark:bg-gray-800">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">To‘lanishi kerak</span>
+                    <span class="text-2xl font-semibold">{{ number_format($totals['amount'], 0, '.', ' ') }} so'm</span>
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label for="mixed-payment-card" class="{{ $posFieldLabelClass }}">Karta</label>
+                        <x-filament::input
+                            id="mixed-payment-card"
+                            x-ref="mixedPaymentCard"
+                            type="number"
+                            inputmode="decimal"
+                            min="0"
+                            max="{{ $totals['amount'] }}"
+                            step="0.01"
+                            x-model="card"
+                            x-on:input="balance('card', $event.target.value)"
+                            placeholder="0"
+                            class="{{ $posInputClass }}"
+                        />
+                    </div>
+                    <div>
+                        <label for="mixed-payment-cash" class="{{ $posFieldLabelClass }}">Naqd</label>
+                        <x-filament::input
+                            id="mixed-payment-cash"
+                            type="number"
+                            inputmode="decimal"
+                            min="0"
+                            max="{{ $totals['amount'] }}"
+                            step="0.01"
+                            x-model="cash"
+                            x-on:input="balance('cash', $event.target.value)"
+                            placeholder="0"
+                            class="{{ $posInputClass }}"
+                        />
+                    </div>
+                </div>
+
+                <p class="text-sm text-gray-500 dark:text-gray-400">Bir summani yozsangiz, qolgan qismi darhol avtomatik hisoblanadi.</p>
+
+                <x-filament::button type="submit" class="w-full">Tasdiqlash</x-filament::button>
+            </form>
+        </div>
+    @endif
+
     {{-- Return Modal --}}
     @if($showReturnModal)
         <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
@@ -817,26 +883,41 @@
                             🧍 Klient tanlash
                         </x-filament::button>
 
-                        <div class="flex items-center gap-4 sm:w-auto w-full order-1 sm:order-2">
-                            <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                                <input type="checkbox" wire:model.live="saleWithoutClient"
-                                       class="rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500 dark:bg-gray-700">
-                                <span>Klientsiz sotuv</span>
-                            </label>
-                            <div class="flex items-center gap-3 text-sm">
-                                <label class="inline-flex items-center gap-1 text-gray-700 dark:text-gray-300">
-                                    <input type="radio" value="cash" wire:model.live="saleWithoutClientPaymentType"
-                                           @disabled(!$saleWithoutClient || $selectedClientId)
-                                           class="text-primary-600 focus:ring-primary-500">
-                                    <span>Naqd</span>
+                        <div class="flex flex-col gap-2 sm:w-auto w-full order-1 sm:order-2">
+                            <div class="flex flex-wrap items-center gap-4">
+                                <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                    <input type="checkbox" wire:model.live="saleWithoutClient"
+                                           class="rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500 dark:bg-gray-700">
+                                    <span>Klientsiz sotuv</span>
                                 </label>
-                                <label class="inline-flex items-center gap-1 text-gray-700 dark:text-gray-300">
-                                    <input type="radio" value="card" wire:model.live="saleWithoutClientPaymentType"
-                                           @disabled(!$saleWithoutClient || $selectedClientId)
-                                           class="text-primary-600 focus:ring-primary-500">
-                                    <span>Karta</span>
-                                </label>
+                                <div class="flex flex-wrap items-center gap-3 text-sm">
+                                    <label class="inline-flex items-center gap-1 text-gray-700 dark:text-gray-300">
+                                        <input type="radio" name="clientless-payment-type" value="cash" wire:model.live="saleWithoutClientPaymentType"
+                                               @disabled(!$saleWithoutClient || $selectedClientId)
+                                               class="text-primary-600 focus:ring-primary-500">
+                                        <span>Naqd</span>
+                                    </label>
+                                    <label class="inline-flex items-center gap-1 text-gray-700 dark:text-gray-300">
+                                        <input type="radio" name="clientless-payment-type" value="card" wire:model.live="saleWithoutClientPaymentType"
+                                               @disabled(!$saleWithoutClient || $selectedClientId)
+                                               class="text-primary-600 focus:ring-primary-500">
+                                        <span>Karta</span>
+                                    </label>
+                                    <label class="inline-flex items-center gap-1 text-gray-700 dark:text-gray-300">
+                                        <input type="radio" name="clientless-payment-type" value="mixed" wire:model.live="saleWithoutClientPaymentType"
+                                               @disabled(!$saleWithoutClient || $selectedClientId)
+                                               class="text-primary-600 focus:ring-primary-500">
+                                        <span>Aralash</span>
+                                    </label>
+                                </div>
                             </div>
+                            @if($saleWithoutClient && !$selectedClientId && $paymentType === 'mixed')
+                                <div class="flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
+                                    <span>Karta: {{ number_format($mixedPayment['card'] ?? 0, 0, '.', ' ') }} so'm</span>
+                                    <span>Naqd: {{ number_format($mixedPayment['cash'] ?? 0, 0, '.', ' ') }} so'm</span>
+                                    <x-filament::button size="xs" color="gray" wire:click="openMixedPaymentModal">O‘zgartirish</x-filament::button>
+                                </div>
+                            @endif
                         </div>
                         {{-- Checkout --}}
                         <x-filament::button
@@ -1292,7 +1373,7 @@
                             @endif
 
                             @if($paymentType === 'mixed')
-                                <div class="mt-4 grid gap-3 md:grid-cols-2">
+                                <div x-data="posMixedPaymentInputs($wire)" class="mt-4 grid gap-3 md:grid-cols-2">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                             Kartada to'lanadi
@@ -1301,7 +1382,8 @@
                                             type="number"
                                             min="0"
                                             step="0.01"
-                                            wire:model.live.debounce.300ms="mixedPayment.card"
+                                            x-model="card"
+                                            x-on:input="balance('card', $event.target.value)"
                                             placeholder="Masalan: 200000"
                                         />
                                     </div>
@@ -1313,13 +1395,14 @@
                                             type="number"
                                             min="0"
                                             step="0.01"
-                                            wire:model.live.debounce.300ms="mixedPayment.cash"
+                                            x-model="cash"
+                                            x-on:input="balance('cash', $event.target.value)"
                                             placeholder="Masalan: 150000"
                                         />
                                     </div>
                                 </div>
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                    Karta summasi kiritilganda qolgan qismi avtomatik naqdga taqsimlanadi.
+                                    Bir summani yozsangiz, qolgan qismi darhol avtomatik hisoblanadi.
                                 </p>
                             @endif
 

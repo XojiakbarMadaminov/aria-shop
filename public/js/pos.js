@@ -1,3 +1,25 @@
+function posMixedPaymentInputs(wire) {
+    return {
+        card: wire.entangle('mixedPayment.card'),
+        cash: wire.entangle('mixedPayment.cash'),
+
+        balance(type, value) {
+            const amount = Number(value);
+            const total = Number(wire.totals.amount ?? 0);
+
+            if (!Number.isFinite(amount) || !Number.isFinite(total)) {
+                return;
+            }
+
+            const totalCents = Math.round(Math.max(0, total) * 100);
+            const amountCents = Math.round(Math.max(0, amount) * 100);
+            const otherType = type === 'card' ? 'cash' : 'card';
+
+            this[otherType] = Math.max(0, totalCents - amountCents) / 100;
+        },
+    };
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         const input = document.querySelector('input[name="Search"]');

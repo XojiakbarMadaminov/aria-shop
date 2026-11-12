@@ -79,3 +79,46 @@ it('includes item and total discount breakdown in sale telegram messages', funct
         ->toContain("Mijoz chegirmasi (10%): -45 000 so'm")
         ->toContain("JAMI SUMMA: 405 000 so'm");
 });
+
+it('includes cash and card amounts only for mixed payment telegram messages', function (float $cash, float $card) {
+    $sale = Sale::withoutEvents(fn (): Sale => Sale::create([
+        'cart_id'           => 1,
+        'total_amount'      => 150000,
+        'paid_amount'       => 150000,
+        'payment_type'      => 'mixed',
+        'mixed_cash_amount' => $cash,
+        'mixed_card_amount' => $card,
+    ]));
+
+    $message = (new ReflectionMethod(TelegramSaleNotifier::class, 'buildMessage'))
+        ->invoke(app(TelegramSaleNotifier::class), $sale, 'created');
+
+    expect($message)
+        ->toContain("💳 To'lov turi: Karta + Naqd")
+        ->toContain('💵 Naqd: ' . number_format($cash, 0, '.', ' ') . " so'm")
+        ->toContain('💳 Karta: ' . number_format($card, 0, '.', ' ') . " so'm")
+        ->toContain("JAMI SUMMA: 150 000 so'm");
+})->with([
+    'split payment' => [100000.0, 50000.0],
+    'all cash'      => [150000.0, 0.0],
+    'all card'      => [0.0, 150000.0],
+]);
+
+it('keeps the existing telegram message for other payment types', function (string $paymentType) {
+    $sale = Sale::withoutEvents(fn (): Sale => Sale::create([
+        'cart_id'           => 1,
+        'total_amount'      => 150000,
+        'paid_amount'       => 150000,
+        'payment_type'      => $paymentType,
+        'mixed_cash_amount' => 100000,
+        'mixed_card_amount' => 50000,
+    ]));
+
+    $message = (new ReflectionMethod(TelegramSaleNotifier::class, 'buildMessage'))
+        ->invoke(app(TelegramSaleNotifier::class), $sale, 'created');
+
+    expect($message)
+        ->toContain("JAMI SUMMA: 150 000 so'm")
+        ->not->toContain('💵 Naqd:')
+        ->not->toContain('💳 Karta:');
+})->with(['cash', 'card', 'debt', 'partial', 'transfer', 'preorder']);

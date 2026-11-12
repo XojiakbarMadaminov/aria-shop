@@ -66,6 +66,16 @@
                 <div class="text-gray-500">To'lov turi</div>
                 <div class="font-medium">{{ $paymentLabel ?? '—' }}</div>
             </div>
+            @if($sale->payment_type === 'mixed')
+                <div>
+                    <div class="text-gray-500 dark:text-gray-400">Naqd to‘lov</div>
+                    <div class="font-medium">{{ number_format($sale->mixed_cash_amount ?? 0, 2) }}</div>
+                </div>
+                <div>
+                    <div class="text-gray-500 dark:text-gray-400">Karta to‘lov</div>
+                    <div class="font-medium">{{ number_format($sale->mixed_card_amount ?? 0, 2) }}</div>
+                </div>
+            @endif
             <div>
                 <div class="text-gray-500">Subtotal</div>
                 <div class="font-medium">{{ number_format($sale->subtotal_amount ?: $sale->total_amount, 2) }}</div>

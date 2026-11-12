@@ -34,6 +34,8 @@ class Pos extends Page
 
     protected const CLIENT_PHONE_PREFIX = '+998';
 
+    protected const CLIENTLESS_PAYMENT_TYPES = ['cash', 'card', 'mixed'];
+
     protected static string|null|\UnitEnum $navigationGroup  = NavigationGroup::BaseActions;
     protected static ?string $title                          = 'Sotuv';
     protected string $view                                   = 'filament.pages.pos';
@@ -88,8 +90,9 @@ class Pos extends Page
     protected bool $isSyncingMixedPayment = false;
     public array $stockOptions            = [];
 
-    public bool $showReturnModal   = false;
-    public bool $showExchangeModal = false;
+    public bool $showReturnModal       = false;
+    public bool $showExchangeModal     = false;
+    public bool $showMixedPaymentModal = false;
 
     public array $returnForm = [
         'product_id'      => null,
@@ -517,11 +520,10 @@ class Pos extends Page
             return false;
         }
 
-        // Klientsiz sotuvda faqat Naqd yoki Karta
-        if ($this->saleWithoutClient && !$this->selectedClientId && !in_array($this->paymentType, ['cash', 'card'], true)) {
+        if ($this->saleWithoutClient && !$this->selectedClientId && !in_array($this->paymentType, self::CLIENTLESS_PAYMENT_TYPES, true)) {
             Notification::make()
                 ->title('Klientsiz sotuv uchun to\'lov turi')
-                ->body('Klientsiz sotuv faqat Naqd yoki Karta bilan yakunlanadi.')
+                ->body('Klientsiz sotuv Naqd, Karta yoki Aralash to‘lov bilan yakunlanadi.')
                 ->warning()
                 ->send();
 
@@ -1046,14 +1048,15 @@ class Pos extends Page
 
     protected function loadActiveCartMeta(): void
     {
+        $this->showMixedPaymentModal        = false;
         $this->selectedClientId             = $this->cartClients[$this->activeCartId] ?? null;
         $this->paymentType                  = $this->cartPaymentTypes[$this->activeCartId] ?? '';
         $this->saleWithoutClient            = (bool) ($this->cartSaleWithoutClient[$this->activeCartId] ?? true);
         $this->saleWithoutClientPaymentType = (string) ($this->cartSaleWithoutClientPaymentType[$this->activeCartId] ?? 'cash');
 
         if ($this->saleWithoutClient && !$this->selectedClientId) {
-            if (!in_array($this->paymentType, ['cash', 'card'], true)) {
-                $this->paymentType = in_array($this->saleWithoutClientPaymentType, ['cash', 'card'], true)
+            if (!in_array($this->paymentType, self::CLIENTLESS_PAYMENT_TYPES, true)) {
+                $this->paymentType = in_array($this->saleWithoutClientPaymentType, self::CLIENTLESS_PAYMENT_TYPES, true)
                     ? $this->saleWithoutClientPaymentType
                     : 'cash';
                 $this->cartPaymentTypes[$this->activeCartId] = $this->paymentType;
@@ -1247,11 +1250,15 @@ class Pos extends Page
         $this->cartSaleWithoutClient[$this->activeCartId] = (bool) $value;
 
         if ($this->saleWithoutClient && !$this->selectedClientId) {
-            $type = in_array($this->saleWithoutClientPaymentType, ['cash', 'card'], true)
+            $type = in_array($this->saleWithoutClientPaymentType, self::CLIENTLESS_PAYMENT_TYPES, true)
                 ? $this->saleWithoutClientPaymentType
                 : 'cash';
             $this->paymentType                           = $type;
             $this->cartPaymentTypes[$this->activeCartId] = $type;
+        }
+
+        if (!$this->saleWithoutClient) {
+            $this->showMixedPaymentModal = false;
         }
 
         $this->persistCartMeta();
@@ -1259,13 +1266,14 @@ class Pos extends Page
 
     public function updatedSaleWithoutClientPaymentType($value): void
     {
-        $val                                                         = in_array($value, ['cash', 'card'], true) ? $value : 'cash';
+        $val                                                         = in_array($value, self::CLIENTLESS_PAYMENT_TYPES, true) ? $value : 'cash';
         $this->saleWithoutClientPaymentType                          = $val;
         $this->cartSaleWithoutClientPaymentType[$this->activeCartId] = $val;
 
         if ($this->saleWithoutClient && !$this->selectedClientId) {
-            $this->paymentType                           = $val;
-            $this->cartPaymentTypes[$this->activeCartId] = $val;
+            $this->selectPaymentType($val);
+
+            return;
         }
 
         $this->persistCartMeta();
@@ -1619,10 +1627,10 @@ class Pos extends Page
             return;
         }
 
-        if ($this->saleWithoutClient && !$this->selectedClientId && !in_array($type, ['cash', 'card'], true)) {
+        if ($this->saleWithoutClient && !$this->selectedClientId && !in_array($type, self::CLIENTLESS_PAYMENT_TYPES, true)) {
             Notification::make()
                 ->title('Klientsiz sotuv uchun to\'lov turi')
-                ->body('Klientsiz sotuv faqat Naqd yoki Karta bilan yakunlanadi.')
+                ->body('Klientsiz sotuv Naqd, Karta yoki Aralash to‘lov bilan yakunlanadi.')
                 ->warning()
                 ->send();
 
@@ -1632,7 +1640,9 @@ class Pos extends Page
         $this->paymentType                           = $type;
         $this->cartPaymentTypes[$this->activeCartId] = $type;
 
-        if (in_array($type, ['cash', 'card'], true)) {
+        $this->showMixedPaymentModal = $type === 'mixed' && $this->saleWithoutClient && !$this->selectedClientId;
+
+        if (in_array($type, self::CLIENTLESS_PAYMENT_TYPES, true)) {
             $this->saleWithoutClientPaymentType                          = $type;
             $this->cartSaleWithoutClientPaymentType[$this->activeCartId] = $type;
         }
@@ -1666,6 +1676,25 @@ class Pos extends Page
         }
 
         $this->persistCartMeta();
+    }
+
+    public function openMixedPaymentModal(): void
+    {
+        if ($this->paymentType !== 'mixed') {
+            return;
+        }
+
+        $this->refreshCart();
+        $this->showMixedPaymentModal = true;
+    }
+
+    public function closeMixedPaymentModal(): void
+    {
+        if ($this->paymentType === 'mixed') {
+            $this->handleMixedPaymentUpdate('card', $this->mixedPayment['card'] ?? null);
+        }
+
+        $this->showMixedPaymentModal = false;
     }
 
     public function updatedPartialPaymentAmount($value): void

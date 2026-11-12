@@ -79,6 +79,10 @@ class TelegramSaleNotifier
             "🧑‍💼 Kassir: {$cashierName}",
             "💰 Summasi: {$total} {$currency}",
             "💳 To'lov turi: {$payment}",
+            ...($sale->payment_type === 'mixed' ? [
+                '💵 Naqd: ' . $this->formatMoney((float) $sale->mixed_cash_amount) . " {$currency}",
+                '💳 Karta: ' . $this->formatMoney((float) $sale->mixed_card_amount) . " {$currency}",
+            ] : []),
             '📦 Mahsulotlar:',
             $hr,
             $itemLines,
