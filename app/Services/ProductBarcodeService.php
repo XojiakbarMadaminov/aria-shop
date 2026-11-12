@@ -16,6 +16,11 @@ class ProductBarcodeService
 
         $product = Product::query()->where('barcode', $barcode)->first();
 
+        if (!$product && strlen($barcode) === 12 && $this->isValidEan13('0' . $barcode)) {
+            $barcode = '0' . $barcode;
+            $product = Product::query()->where('barcode', $barcode)->first();
+        }
+
         if ($product || !$this->isValidEan13($barcode)) {
             return $product;
         }
