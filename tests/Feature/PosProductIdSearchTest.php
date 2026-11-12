@@ -83,6 +83,27 @@ it('searches products by id on the POS page', function () {
         ->assertDontSee('Boshqa tovar');
 });
 
+it('adds a product by its original or legacy printed barcode', function (string $barcode, string $method) {
+    [$product, $user] = createVisiblePosProduct($this, ['barcode' => '012002800069']);
+
+    $component = Livewire::actingAs($user)->test(Pos::class);
+
+    if ($method === 'scanEnter') {
+        $component->set('search', $barcode)->call($method);
+    } else {
+        $component->call($method, $barcode);
+    }
+
+    $component->assertSet('search', '');
+
+    expect(session('pos_carts.1.' . $product->id . '.qty'))->toBe(1);
+})->with([
+    'original scanner barcode' => ['012002800069', 'addByBarcode'],
+    'legacy scanner label'     => ['0120028000698', 'addByBarcode'],
+    'original enter barcode'   => ['012002800069', 'scanEnter'],
+    'legacy enter label'       => ['0120028000698', 'scanEnter'],
+]);
+
 it('adds a product to the POS cart by id', function () {
     [$product, $user] = createVisiblePosProduct($this, [
         'name'  => 'ID orqali savatga tushadigan tovar',

@@ -20,6 +20,7 @@ use App\Models\DebtorTransaction;
 use App\Services\DiscountService;
 use App\Services\ExchangeService;
 use Illuminate\Support\Facades\DB;
+use App\Services\ProductBarcodeService;
 use Filament\Notifications\Notification;
 use App\Services\CustomerDiscountService;
 use Filament\Panel\Concerns\HasNotifications;
@@ -280,8 +281,8 @@ class Pos extends Page
 
         $this->products = Product::query()
             ->where(
-                fn ($q) => $q->where('barcode', 'ILIKE', "%{$this->search}%")
-                    ->orWhere('name', 'ILIKE', "%{$this->search}%")
+                fn ($q) => $q->whereLike('barcode', "%{$this->search}%")
+                    ->orWhereLike('name', "%{$this->search}%")
             )
             ->orderBy('name')
             ->limit(5)
@@ -1278,7 +1279,7 @@ class Pos extends Page
             return;
         }
 
-        $product = Product::where('barcode', $code)->first();
+        $product = app(ProductBarcodeService::class)->findProduct($code);
         if ($product) {
             $this->add($product->id);
             $this->reset('search');
@@ -1297,12 +1298,13 @@ class Pos extends Page
             return;
         }
 
-        $product = Product::where('barcode', $value)
-            ->orWhere(function ($q) use ($value) {
-                $q->where('name', 'ILIKE', "{$value}%")
-                    ->orWhere('name', 'ILIKE', "%{$value}");
-            })
-            ->first();
+        $product = app(ProductBarcodeService::class)->findProduct($value)
+            ?? Product::query()
+                ->where(function ($q) use ($value) {
+                    $q->whereLike('name', "{$value}%")
+                        ->orWhereLike('name', "%{$value}");
+                })
+                ->first();
 
         if ($product) {
             app(CartService::class)->add($product, 1, $this->activeCartId);

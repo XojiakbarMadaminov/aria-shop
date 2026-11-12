@@ -136,6 +136,7 @@
         $scale      = $cfg['barcode']['scale'];
         $barHeight  = $cfg['barcode']['height'];
         $codeFont   = $cfg['code_font'];
+        $barcodeType = app(\App\Services\ProductBarcodeService::class)->labelType((string) $product->barcode);
 
         $discountPrice = $discountPrices instanceof \Illuminate\Support\Collection
             ? $discountPrices->get($product->id)
@@ -160,7 +161,7 @@
 
         <div class="barcode">
             <div style="display:inline-block;">
-                {!! DNS1D::getBarcodeHTML($product->barcode, 'EAN13', $scale, $barHeight) !!}
+                {!! DNS1D::getBarcodeHTML($product->barcode, $barcodeType, $scale, $barHeight) !!}
             </div>
         </div>
 
